@@ -4,6 +4,14 @@ Basic scanner of TLS connections via BouncyCastle crypto-provider.
 
 Tested only on MacOS currently.
 
+## Prerequisites
+
+You need to have JAVA installed. If not installed, try setting it via homebrew:
+
+```
+brew install openjdk
+```
+
 ## Build
 
 ```
