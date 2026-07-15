@@ -4,18 +4,25 @@ import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
 import org.bouncycastle.tls.TlsAuthentication;
 import org.bouncycastle.tls.ServerOnlyTlsAuthentication;
 import org.bouncycastle.tls.TlsServerCertificate;
+import org.bouncycastle.tls.SecurityParameters;
+import org.bouncycastle.tls.CipherSuite;
+import org.bouncycastle.tls.TlsClientContext;
 
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.security.SecureRandom;
 
-public class BouncyCastleTlsTest {
+public class TlsTest {
+
+    // We will use this to safely reference the connection context outside the subclass
+    private static TlsClientContext savedContext = null;
+
     public static void main(String[] args) {
         // Check if the user passed a host parameter
         if (args.length < 1) {
-            System.out.println("Usage: java -cp \"lib/*:.\" BouncyCastleTlsTest <hostname>");
-            System.out.println("Example: java -cp \"lib/*:.\" BouncyCastleTlsTest google.com");
+            System.out.println("Usage: java -cp \"lib/*:out\" TlsTest <hostname>");
+            System.out.println("Example: java -cp \"lib/*:out\" TlsTest google.com");
             return;
         }
 
@@ -37,6 +44,13 @@ public class BouncyCastleTlsTest {
 
             // Connect using the Bouncy Castle DefaultTlsClient
             tlsClientProtocol.connect(new DefaultTlsClient(crypto) {
+		@Override
+                public void init(TlsClientContext context) {
+                    super.init(context);
+                    // Capture the context securely when the client initializes
+                    savedContext = context;
+                }
+
                 @Override
                 public TlsAuthentication getAuthentication() {
                     return new ServerOnlyTlsAuthentication() {
@@ -47,6 +61,18 @@ public class BouncyCastleTlsTest {
                     };
                 }
             });
+
+
+	    // --- EXTRACT CIPHER SUITE INFO SAFELY ---
+            if (savedContext != null && savedContext.getSecurityParameters() != null) {
+                SecurityParameters secParams = savedContext.getSecurityParameters();
+                int suiteCode = secParams.getCipherSuite();
+                
+                System.out.println("\n========================================");
+                System.out.println("Negotiated Cipher Suite: " + "(0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
+                System.out.println("========================================\n");
+            }
+            // --------------------------------------
 
 
             // Use these wrapped streams for your encrypted I/O
