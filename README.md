@@ -50,3 +50,19 @@ alt-svc: h3=":443"; ma=86400
 </html>
 tls-scanner %
 ```
+
+```
+tls-scanner % java -cp "lib/*:out" SupportedSuites github.com
+Scanning github.com on port 443 across 326 cipher suites...
+This may take a moment as we test suites individually...
+
+========================================
+ Scan Results for: github.com
+========================================
+The server accepted the following 3 suite(s):
+ - TLS_AES_128_GCM_SHA256 (0x1301)
+ - TLS_AES_256_GCM_SHA384 (0x1302)
+ - TLS_CHACHA20_POLY1305_SHA256 (0x1303)
+========================================
+tls-scanner %
+```
