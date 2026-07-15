@@ -15,13 +15,14 @@ brew install openjdk
 ## Build
 
 ```
-javac -cp "lib/*" -d out BouncyCastleTlsTest.java
+javac -cp "lib/*" -d out TlsTest.java
+javac -cp "lib/*" -d out SupportedSuites.java
 ```
 
 ## Run
 
 ```
-tls-scanner % java -cp "lib/*:out" BouncyCastleTlsTest cloudflare.com
+tls-scanner % java -cp "lib/*:out" TlsTest cloudflare.com
 Connecting to cloudflare.com on port 443...
 Handshake successful! Server certificate received.
 HTTP/1.1 301 Moved Permanently
