@@ -66,3 +66,54 @@ The server accepted the following 3 suite(s):
 ========================================
 tls-scanner %
 ```
+
+It is also possible to use local nginx server for testing TLS connections with above scanners, which makes vulnerability testing laboratory.
+To run nginx you need to have `docker` installed:
+
+```
+docker run -d --name weak-tls-server \
+	-p 80:80 \
+	-p 443:443 \
+	-v $(pwd)/nginx-tls/nginx.conf:/etc/nginx/conf.d/default.conf \
+	-v $(pwd)/nginx-tls/server.crt:/etc/nginx/ssl/server.crt \
+	-v $(pwd)/nginx-tls/server.key:/etc/nginx/ssl/server.key nginx
+```
+
+In this case `SupportedSuites` scanner can establish more TLS connections (including weak):
+```
+tls-scanner % java -cp "lib/*:out" SupportedSuites localhost
+Scanning localhost on port 443 across 326 cipher suites...
+This may take a moment as we test suites individually...
+
+========================================
+ Scan Results for: localhost
+========================================
+The server accepted the following 25 suite(s):
+ - TLS_RSA_WITH_AES_128_CBC_SHA (0x2F)
+ - TLS_RSA_WITH_AES_256_CBC_SHA (0x35)
+ - TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (0x41)
+ - TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (0x84)
+ - TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 (0xBA)
+ - TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 (0xC0)
+ - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (0xC013)
+ - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (0xC014)
+ - TLS_RSA_WITH_AES_128_CBC_SHA256 (0x3C)
+ - TLS_RSA_WITH_AES_256_CBC_SHA256 (0x3D)
+ - TLS_RSA_WITH_AES_128_GCM_SHA256 (0x9C)
+ - TLS_RSA_WITH_AES_256_GCM_SHA384 (0x9D)
+ - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 (0xC027)
+ - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 (0xC028)
+ - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xC02F)
+ - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xC030)
+ - TLS_RSA_WITH_ARIA_128_GCM_SHA256 (0xC050)
+ - TLS_RSA_WITH_ARIA_256_GCM_SHA384 (0xC051)
+ - TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256 (0xC060)
+ - TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384 (0xC061)
+ - TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 (0xC076)
+ - TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384 (0xC077)
+ - TLS_RSA_WITH_AES_128_CCM (0xC09C)
+ - TLS_RSA_WITH_AES_256_CCM (0xC09D)
+ - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 (0xCCA8)
+========================================
+tls-scanner %
+```
