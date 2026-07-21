@@ -21,8 +21,16 @@ public class SupportedSuites {
             return;
         }
 
+	// Grab host and port from command line
         String host = args[0];
-        int port = 443;
+	int port = 0;
+        try {
+            port = Integer.parseInt(args[1]);
+        } catch (Exception e) {
+            System.out.println("Specified port is invalid");
+            e.printStackTrace();
+            System.exit(1);
+        }
 
         // 1. Gather all potential cipher suites known to Bouncy Castle
         List<Integer> allSuites = getAllKnownCipherSuites();

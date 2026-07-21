@@ -22,7 +22,7 @@ javac -cp "lib/*" -d out SupportedSuites.java
 ## Run
 
 ```
-tls-scanner % java -cp "lib/*:out" TlsTest cloudflare.com
+tls-scanner % java -cp "lib/*:out" TlsTest cloudflare.com 443
 Connecting to cloudflare.com on port 443...
 Handshake successful! Server certificate received.
 HTTP/1.1 301 Moved Permanently
@@ -52,7 +52,7 @@ tls-scanner %
 ```
 
 ```
-tls-scanner % java -cp "lib/*:out" SupportedSuites github.com
+tls-scanner % java -cp "lib/*:out" SupportedSuites github.com 443
 Scanning github.com on port 443 across 326 cipher suites...
 This may take a moment as we test suites individually...
 
@@ -81,7 +81,7 @@ docker run -d --name weak-tls-server \
 
 In this case `SupportedSuites` scanner can establish more TLS connections (including weak):
 ```
-tls-scanner % java -cp "lib/*:out" SupportedSuites localhost
+tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 443
 Scanning localhost on port 443 across 326 cipher suites...
 This may take a moment as we test suites individually...
 

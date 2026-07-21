@@ -20,15 +20,22 @@ public class TlsTest {
 
     public static void main(String[] args) {
         // Check if the user passed a host parameter
-        if (args.length < 1) {
-            System.out.println("Usage: java -cp \"lib/*:out\" TlsTest <hostname>");
-            System.out.println("Example: java -cp \"lib/*:out\" TlsTest google.com");
+        if (args.length < 2) {
+            System.out.println("Usage: java -cp \"lib/*:out\" TlsTest <hostname> <port>");
+            System.out.println("Example: java -cp \"lib/*:out\" TlsTest google.com 443");
             return;
         }
 
-        // Grab the host from the command line arguments
+        // Grab the host and port from the command line arguments
         String host = args[0];
-        int port = 443;
+        int port = 0;
+	try {
+            port = Integer.parseInt(args[1]);
+        } catch (Exception e) {
+            System.out.println("Specified port is invalid");
+	    e.printStackTrace();
+	    System.exit(1);
+        }
 
         System.out.println("Connecting to " + host + " on port " + port + "...");
 
