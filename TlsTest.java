@@ -5,7 +5,6 @@ import org.bouncycastle.tls.TlsAuthentication;
 import org.bouncycastle.tls.ServerOnlyTlsAuthentication;
 import org.bouncycastle.tls.TlsServerCertificate;
 import org.bouncycastle.tls.SecurityParameters;
-import org.bouncycastle.tls.CipherSuite;
 import org.bouncycastle.tls.TlsClientContext;
 
 import java.io.InputStream;
@@ -29,12 +28,12 @@ public class TlsTest {
         // Grab the host and port from the command line arguments
         String host = args[0];
         int port = 0;
-	try {
+        try {
             port = Integer.parseInt(args[1]);
         } catch (Exception e) {
             System.out.println("Specified port is invalid");
-	    e.printStackTrace();
-	    System.exit(1);
+            e.printStackTrace();
+            System.exit(1);
         }
 
         System.out.println("Connecting to " + host + " on port " + port + "...");
@@ -44,14 +43,11 @@ public class TlsTest {
             BcTlsCrypto crypto = new BcTlsCrypto(new SecureRandom());
 
             // Set up the protocol handler
-            TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(
-                socket.getInputStream(), 
-                socket.getOutputStream()
-            );
+            TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(socket.getInputStream(), socket.getOutputStream());
 
             // Connect using the Bouncy Castle DefaultTlsClient
             tlsClientProtocol.connect(new DefaultTlsClient(crypto) {
-		@Override
+                @Override
                 public void init(TlsClientContext context) {
                     super.init(context);
                     // Capture the context securely when the client initializes
@@ -70,17 +66,16 @@ public class TlsTest {
             });
 
 
-	    // --- EXTRACT CIPHER SUITE INFO SAFELY ---
+            // --- EXTRACT CIPHER SUITE INFO SAFELY ---
             if (savedContext != null && savedContext.getSecurityParameters() != null) {
                 SecurityParameters secParams = savedContext.getSecurityParameters();
                 int suiteCode = secParams.getCipherSuite();
-                
+
                 System.out.println("\n========================================");
                 System.out.println("Negotiated Cipher Suite: " + "(0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
                 System.out.println("========================================\n");
             }
             // --------------------------------------
-
 
             // Use these wrapped streams for your encrypted I/O
             InputStream secureIn = tlsClientProtocol.getInputStream();
@@ -93,7 +88,7 @@ public class TlsTest {
 
             // Read the response
             int data = secureIn.read();
-            while(data != -1) {
+            while (data != -1) {
                 System.out.print((char) data);
                 data = secureIn.read();
             }

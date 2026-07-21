@@ -21,9 +21,9 @@ public class SupportedSuites {
             return;
         }
 
-	// Grab host and port from command line
+        // Grab host and port from command line
         String host = args[0];
-	int port = 0;
+        int port = 0;
         try {
             port = Integer.parseInt(args[1]);
         } catch (Exception e) {
@@ -47,18 +47,18 @@ public class SupportedSuites {
 
             try (Socket socket = new Socket(host, port)) {
                 // Set a brief timeout so dead suites don't hang the scanner
-                socket.setSoTimeout(3000); 
+                socket.setSoTimeout(3000);
 
                 TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(
-                    socket.getInputStream(), 
-                    socket.getOutputStream()
+                        socket.getInputStream(),
+                        socket.getOutputStream()
                 );
 
                 // Override the client to ONLY offer this single cipher suite
                 tlsClientProtocol.connect(new DefaultTlsClient(crypto) {
                     @Override
                     public int[] getCipherSuites() {
-                        return new int[]{ suiteCode };
+                        return new int[]{suiteCode};
                     }
 
                     @Override
