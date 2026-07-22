@@ -3,13 +3,13 @@ import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.TlsCertificate;
 import org.bouncycastle.tls.crypto.TlsCrypto;
 import org.bouncycastle.tls.crypto.TlsCryptoParameters;
+import org.bouncycastle.tls.crypto.impl.bc.BcDefaultTlsCredentialedDecryptor;
 import org.bouncycastle.tls.crypto.impl.bc.BcDefaultTlsCredentialedSigner;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
 
@@ -25,7 +25,7 @@ import java.util.Date;
 
 public class BouncyCastleTlsServer {
     // Keep the parsed components in-memory at startup
-    private static Certificate serverCertChain;
+    private static TlsCertificate serverTlsCert;
     private static AsymmetricKeyParameter serverPrivateKey;
 
     public static void main(String[] args) {
@@ -104,6 +104,7 @@ public class BouncyCastleTlsServer {
             // Catch specific TLS failures (like handshake_failure(40)) cleanly
             System.err.println("[Server] TLS Handshake failed gracefully: " + e.getMessage()
                     + " (Alert Description: " + e.getAlertDescription() + ")");
+            e.printStackTrace();
         } catch (IOException e) {
             System.err.println("[Server] Network I/O breakdown: " + e.getMessage());
         } finally {
@@ -131,6 +132,18 @@ public class BouncyCastleTlsServer {
         }
 
         @Override
+        public int[] getCipherSuites() {
+            // Exclusively allow the suites defined in our shared configuration
+            return SharedTlsConfig.MY_CUSTOM_SUITES;
+        }
+
+        @Override
+        public int[] getSupportedCipherSuites() {
+            // Force the absolute lowest engine limits to natively allow your custom choices
+            return SharedTlsConfig.MY_CUSTOM_SUITES;
+        }
+
+        @Override
         protected ProtocolVersion[] getSupportedVersions() {
             return ProtocolVersion.TLSv13.downTo(ProtocolVersion.TLSv12);
         }
@@ -142,6 +155,8 @@ public class BouncyCastleTlsServer {
              */
             TlsCryptoParameters cryptoParams = new TlsCryptoParameters(this.context);
             BcTlsCrypto bcCrypto = (BcTlsCrypto) getCrypto();
+
+            int keyExchangeAlgorithm = context.getSecurityParametersHandshake().getKeyExchangeAlgorithm();
 
             SignatureAndHashAlgorithm selectedAlg = null;
 
@@ -158,13 +173,53 @@ public class BouncyCastleTlsServer {
                 selectedAlg = new SignatureAndHashAlgorithm(HashAlgorithm.sha256, SignatureAlgorithm.rsa);
             }
 
-            return new BcDefaultTlsCredentialedSigner(
-                    cryptoParams,
-                    bcCrypto,
-                    serverPrivateKey,
-                    serverCertChain,
-                    selectedAlg
-            );
+            // ==================== DYNAMIC VERSION-BASED CERTIFICATE CREATION ====================
+            Certificate localCertChain;
+
+            if (TlsUtils.isTLSv13(context)) {
+                // TLS 1.3: Requires the CertificateEntry structure WITH an explicit extensions map
+                // AND a non-null (empty) request context array.
+                System.out.println("[Server] Building TLS 1.3 compliant Certificate layout...");
+                java.util.Hashtable extensions = new java.util.Hashtable();
+                CertificateEntry certEntry = new CertificateEntry(serverTlsCert, extensions);
+                CertificateEntry[] certificateEntryList = new CertificateEntry[]{certEntry};
+                byte[] certificateRequestContext = new byte[0]; // Strict requirement for TLS 1.3
+
+                localCertChain = new Certificate(certificateRequestContext, certificateEntryList);
+            } else {
+                // TLS 1.2: Requires the legacy array structure to avoid IllegalStateException.
+                System.out.println("[Server] Building TLS 1.2 compliant Certificate layout...");
+                TlsCertificate[] certArray = new TlsCertificate[]{serverTlsCert};
+
+                localCertChain = new Certificate(certArray);
+            }
+            // ====================================================================================
+
+
+            switch (keyExchangeAlgorithm) {
+                case KeyExchangeAlgorithm.RSA:
+                    // Required for legacy plain "TLS_RSA_WITH_..." suites (Server decrypts pre-master secret)
+                    System.out.println("[Server] Handshake requires an RSA Decryptor wrapper.");
+                    return new BcDefaultTlsCredentialedDecryptor(bcCrypto, localCertChain, serverPrivateKey);
+
+                case KeyExchangeAlgorithm.ECDHE_RSA:
+                case KeyExchangeAlgorithm.DHE_RSA:
+                    // Required for modern ephemeral Diffie-Hellman suites (Server signs parameters)
+                    System.out.println("[Server] Handshake requires an RSA Signer wrapper.");
+                    return new BcDefaultTlsCredentialedSigner(cryptoParams, bcCrypto, serverPrivateKey, localCertChain, selectedAlg);
+
+                case KeyExchangeAlgorithm.NULL:
+                    // TLS 1.3 completely eliminates explicit KeyExchangeAlgorithm constants in BC
+                    // It relies on internal HKDF mechanisms, but still requires a Signer for the CertificateVerify packet
+                    if (TlsUtils.isTLSv13(context)) {
+                        System.out.println("[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.");
+                        return new BcDefaultTlsCredentialedSigner(cryptoParams, bcCrypto, serverPrivateKey, localCertChain, selectedAlg);
+                    }
+
+                default:
+                    throw new TlsFatalAlert(AlertDescription.internal_error,
+                            new IllegalStateException("Unsupported key exchange algorithm: " + keyExchangeAlgorithm));
+            }
         }
     }
 
@@ -191,15 +246,8 @@ public class BouncyCastleTlsServer {
             X509Certificate certificate = new JcaX509CertificateConverter().getCertificate(certBuilder.build(contentSigner));
 
             byte[] encodedCertBytes = certificate.getEncoded();
-            TlsCertificate bcTlsCert = crypto.createCertificate(encodedCertBytes);
-
-            java.util.Hashtable extensions = new java.util.Hashtable();
-            CertificateEntry certEntry = new CertificateEntry(bcTlsCert, extensions);
-            CertificateEntry[] certificateEntryList = new CertificateEntry[]{certEntry};
-            byte[] certificateRequestContext = new byte[0];
-
-            serverCertChain = new Certificate(certificateRequestContext, certificateEntryList);
-            serverPrivateKey = PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded());
+            serverTlsCert = crypto.createCertificate(encodedCertBytes);
+            serverPrivateKey = org.bouncycastle.crypto.util.PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded());
 
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate structural BC credentials", e);
