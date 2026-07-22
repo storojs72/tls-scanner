@@ -16,7 +16,7 @@ brew install openjdk
 
 ```
 javac -cp "lib/*" -d out TlsTest.java
-javac -cp "lib/*" -d out SupportedSuites.java
+javac -cp "lib/*" -d out SharedTlsConfig.java SupportedSuites.java
 ```
 
 ## Run
@@ -126,10 +126,89 @@ docker run -d -p 8443:8443 --name my-bc-server bc-tls-server
 ```
 
 Above commands will create and run BC-based TLS server inside docker container, available for establishing connections:
+
+Executing `SupportedSuites` scanner (with cipher suites taken from `SharedTlsConfig.java`):
+```
+tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 8443
+Scanning localhost on port 8443 across 9 cipher suites...
+This may take a moment as we test suites individually...
+
+========================================
+ Scan Results for: localhost
+========================================
+The server accepted the following 9 suite(s):
+ - TLS_AES_256_GCM_SHA384 (0x1302)
+ - TLS_AES_128_GCM_SHA256 (0x1301)
+ - TLS_CHACHA20_POLY1305_SHA256 (0x1303)
+ - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xC030)
+ - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xC02F)
+ - TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 (0x9F)
+ - TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 (0x9E)
+ - TLS_RSA_WITH_AES_256_GCM_SHA384 (0x9D)
+ - TLS_RSA_WITH_AES_128_GCM_SHA256 (0x9C)
+========================================
+tls-scanner %
+```
+
+Logs on BouncyCastle's server:
 ```
 tls-scanner % docker logs my-bc-server
-Bouncy Castle TLS Server started on port 8443 ...
-Total enabled cipher suites: 31
-Enabled suites: [TLS_AES_256_GCM_SHA384, TLS_AES_128_GCM_SHA256, TLS_CHACHA20_POLY1305_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256, TLS_DHE_DSS_WITH_AES_256_GCM_SHA384, TLS_DHE_RSA_WITH_AES_128_GCM_SHA256, TLS_DHE_DSS_WITH_AES_128_GCM_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_RSA_WITH_AES_256_CBC_SHA256, TLS_DHE_DSS_WITH_AES_256_CBC_SHA256, TLS_DHE_RSA_WITH_AES_128_CBC_SHA256, TLS_DHE_DSS_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA, TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_RSA_WITH_AES_256_CBC_SHA, TLS_DHE_DSS_WITH_AES_256_CBC_SHA, TLS_DHE_RSA_WITH_AES_128_CBC_SHA, TLS_DHE_DSS_WITH_AES_128_CBC_SHA, TLS_EMPTY_RENEGOTIATION_INFO_SCSV]
+Generating in-memory credentials using BC...
+Starting server...
+[Server] Raw TCP connection accepted from: /172.17.0.1:35832
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35840
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35850
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35854
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35862
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35876
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35886
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35896
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Decryptor wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /172.17.0.1:35910
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Decryptor wrapper.
+[Server] Handshake completed successfully.
+[Server] Worker thread execution finished. Socket released.
+artemstorozhuk@192 tls-scanner %
 tls-scanner % 
 ``` 
