@@ -1,11 +1,7 @@
-import org.bouncycastle.tls.DefaultTlsClient;
-import org.bouncycastle.tls.TlsClientProtocol;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.operator.DefaultAlgorithmNameFinder;
+import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
-import org.bouncycastle.tls.TlsAuthentication;
-import org.bouncycastle.tls.ServerOnlyTlsAuthentication;
-import org.bouncycastle.tls.TlsServerCertificate;
-import org.bouncycastle.tls.SecurityParameters;
-import org.bouncycastle.tls.TlsClientContext;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,6 +72,12 @@ public class TlsTest {
                 System.out.println("========================================\n");
             }
             // --------------------------------------
+            Certificate cert = savedContext.getSecurityParameters().getPeerCertificate();
+            DefaultAlgorithmNameFinder nameFinder = new DefaultAlgorithmNameFinder();
+            for (int i = 0; i < cert.getLength(); i++) {
+                System.out.println("cert[" + i + "] signature algorithm: " + nameFinder.getAlgorithmName(new ASN1ObjectIdentifier(cert.getCertificateAt(i).getSigAlgOID())));
+            }
+            System.out.println("\n========================================");
 
             // Use these wrapped streams for your encrypted I/O
             InputStream secureIn = tlsClientProtocol.getInputStream();
@@ -89,7 +91,9 @@ public class TlsTest {
             // Read the response
             int data = secureIn.read();
             while (data != -1) {
-                System.out.print((char) data);
+                if (args.length == 3) {
+                    System.out.print((char) data);
+                }
                 data = secureIn.read();
             }
 
