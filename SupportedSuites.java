@@ -14,7 +14,9 @@ public class SupportedSuites {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            System.out.println("Usage: java -cp \"lib/*:out\" SupportedSuites <hostname>");
+            System.out.println("Usage: java -cp \"lib/*:out\" SupportedSuites <hostname> <port>");
+            System.out.println("Example: java -cp \"lib/*:out\" SupportedSuites localhost 8443");
+            System.out.println("Example (if you want experimental DSTU encryption): java -cp \"lib/*:out\" SupportedSuites localhost 8443 dstu");
             return;
         }
 
@@ -32,13 +34,18 @@ public class SupportedSuites {
         // 1. Gather cipher suites that we want to test
         //List<Integer> allSuites = getAllKnownCipherSuites();
         List<Integer> allSuites = Arrays.stream(SharedTlsConfig.MY_CUSTOM_SUITES).boxed().toList();
-        ;
         List<String> supportedSuites = new ArrayList<>();
 
         System.out.println("Scanning " + host + " on port " + port + " across " + allSuites.size() + " cipher suites...");
         System.out.println("This may take a moment as we test suites individually...\n");
 
-        BcTlsCrypto crypto = new BcTlsCrypto(new SecureRandom());
+        SecureRandom secureRandom = new SecureRandom();
+        TlsCrypto crypto;
+        if (args[2].equals("dstu")) {
+            crypto = new DstuBcTlsCrypto(secureRandom);
+        } else {
+            crypto = new BcTlsCrypto(secureRandom);
+        }
 
         // 2. Multi-pass loop: Test each cipher suite one by one
         for (int suiteCode : allSuites) {
@@ -70,6 +77,7 @@ public class SupportedSuites {
                         };
                     }
                 });
+
 
                 // If no exception was thrown, the handshake succeeded!
                 supportedSuites.add(suiteName + " (0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");

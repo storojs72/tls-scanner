@@ -209,6 +209,5 @@ Starting server...
 [Server] Handshake requires an RSA Decryptor wrapper.
 [Server] Handshake completed successfully.
 [Server] Worker thread execution finished. Socket released.
-artemstorozhuk@192 tls-scanner %
 tls-scanner % 
 ``` 

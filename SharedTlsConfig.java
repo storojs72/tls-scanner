@@ -11,7 +11,5 @@ public class SharedTlsConfig {
             CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,   // TLS 1.2 (DHE-RSA)
             CipherSuite.TLS_RSA_WITH_AES_256_GCM_SHA384,       // TLS 1.2 (Plain RSA)
             CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256,       // TLS 1.2 (Plain RSA)
-            // You can add your custom experimental DSTU suite ID here later:
-            // 0xFFD1
     };
 }

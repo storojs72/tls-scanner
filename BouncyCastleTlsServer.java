@@ -32,6 +32,7 @@ public class BouncyCastleTlsServer {
         if (args.length < 1) {
             System.out.println("Usage: java -cp \"lib/*:out\" BouncyCastleTlsServer <port>");
             System.out.println("Example: java -cp \"lib/*:out\" BouncyCastleTlsServer 8443");
+            System.out.println("Example (if you want experimental DSTU encryption): java -cp \"lib/*:out\" BouncyCastleTlsServer 8443 dstu");
             return;
         }
         int port = 0;
@@ -45,7 +46,12 @@ public class BouncyCastleTlsServer {
 
         // Initialize BC TLS crypto using secure PRNG
         SecureRandom secureRandom = new SecureRandom();
-        TlsCrypto crypto = new BcTlsCrypto(secureRandom);
+        TlsCrypto crypto;
+        if (args[1].equals("dstu")) {
+            crypto = new DstuBcTlsCrypto(secureRandom);
+        } else {
+            crypto = new BcTlsCrypto(secureRandom);
+        }
 
         System.out.println("Generating in-memory credentials using BC...");
         generateInMemoryCredentials(crypto);
