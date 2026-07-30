@@ -2,7 +2,7 @@ import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.TlsCrypto;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
 
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.net.Socket;
 import java.security.SecureRandom;
@@ -78,8 +78,26 @@ public class SupportedSuites {
                     }
                 });
 
+                InputStream secureInput = tlsClientProtocol.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(secureInput, "UTF-8"));
 
-                // If no exception was thrown, the handshake succeeded!
+                OutputStream secureOutput = tlsClientProtocol.getOutputStream();
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(secureOutput, "UTF-8"), true);
+
+                // Write simple GET that is already encrypted
+                writer.println("GET / HTTP/1.1");
+                writer.println("Host: " + socket.getInetAddress().getHostName());
+                writer.println("Connection: close");
+                writer.println(); // Critical empty line for HTTP protocol
+
+                // Read the decrypted server response
+                String clientMessage = reader.readLine();
+                if (clientMessage != null) {
+                    System.out.println("--- Decrypted Payload Response from Server ---");
+                    System.out.println(clientMessage);
+                }
+
+                // If no exception was thrown, the handshake succeeded and encryption/decryption is evaluated!
                 supportedSuites.add(suiteName + " (0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
                 tlsClientProtocol.close();
 
