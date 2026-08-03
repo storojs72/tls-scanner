@@ -1,25 +1,30 @@
+import org.bouncycastle.asn1.ua.DSTU4145NamedCurves;
+import org.bouncycastle.asn1.ua.UAObjectIdentifiers;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.agreement.ECDHCBasicAgreement;
 import org.bouncycastle.crypto.digests.DSTU7564Digest;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.digests.SHA384Digest;
 import org.bouncycastle.crypto.engines.DSTU7624Engine;
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
 import org.bouncycastle.crypto.modes.AEADBlockCipher;
-import org.bouncycastle.crypto.params.AEADParameters;
-import org.bouncycastle.crypto.params.KeyParameter;
+import org.bouncycastle.crypto.params.*;
 import org.bouncycastle.tls.EncryptionAlgorithm;
 import org.bouncycastle.tls.HashAlgorithm;
+import org.bouncycastle.tls.NamedGroup;
 import org.bouncycastle.tls.TlsFatalAlert;
-import org.bouncycastle.tls.crypto.TlsCipher;
-import org.bouncycastle.tls.crypto.TlsCryptoParameters;
-import org.bouncycastle.tls.crypto.TlsHash;
+import org.bouncycastle.tls.crypto.*;
 import org.bouncycastle.tls.crypto.impl.AEADNonceGeneratorFactory;
 import org.bouncycastle.tls.crypto.impl.TlsAEADCipher;
 import org.bouncycastle.tls.crypto.impl.TlsAEADCipherImpl;
-import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
+import org.bouncycastle.tls.crypto.impl.bc.*;
 import org.bouncycastle.util.Arrays;
+import org.bouncycastle.util.BigIntegers;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.SecureRandom;
 
 public class DstuBcTlsCrypto extends BcTlsCrypto {
@@ -64,6 +69,93 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
             return new DstuBcTlsHash(this, cryptoHashAlgorithm);
         }
         return super.createHash(cryptoHashAlgorithm);
+    }
+
+    @Override
+    public TlsECDomain createECDomain(TlsECConfig ecConfig) {
+        // Check if the handshake is currently establishing an ECDH flow via secp256r1
+        if (ecConfig.getNamedGroup() == NamedGroup.x25519) {
+            System.out.println("[DSTU-BC-CRYPTO.createECDomain] Instantiate DSTU 4145 curve (with identical parameters) instead of x25519");
+            return new Dstu4145ECDomain(this);
+        }
+
+        // Otherwise, allow any other curves/handshakes to process natively without modification
+        return super.createECDomain(ecConfig);
+    }
+}
+
+// Substitutes x25519 to DSTU 4145 (257 bits)
+class Dstu4145ECDomain implements TlsECDomain {
+    protected final DstuBcTlsCrypto crypto;
+
+    public Dstu4145ECDomain(DstuBcTlsCrypto crypto) {
+        this.crypto = crypto;
+    }
+
+    public TlsAgreement createECDH() {
+        return new BcDstu4145(this.crypto);
+    }
+}
+
+/*
+    Note that TlsAgreement API can be used differently during actual TLS handshaking.
+    More specifically, the order of `receivePeerValue` invocation is not the same on client and on server.
+*/
+class BcDstu4145 implements TlsAgreement {
+    protected final BcTlsCrypto crypto;
+    protected final ECKeyPairGenerator generator;
+    protected final ECDomainParameters dstuParams;
+    protected ECPrivateKeyParameters privateKeyParameters;
+    protected ECPublicKeyParameters publicKeyParameters;
+
+    public BcDstu4145(BcTlsCrypto crypto) {
+        this.crypto = crypto;
+        this.generator = new ECKeyPairGenerator();
+
+        // choose DSTU 4145 curve with 233-bits field size as it maps well to x25519 (ultimate shared secret has 31 bytes length)
+        // and then generate key pair
+        this.dstuParams = DSTU4145NamedCurves.getByOID(UAObjectIdentifiers.dstu4145le.branch("2.5"));
+        this.privateKeyParameters = null;
+        this.publicKeyParameters = null;
+    }
+
+    public byte[] generateEphemeral() throws IOException {
+        generator.init(new ECKeyGenerationParameters(dstuParams, crypto.getSecureRandom()));
+        AsymmetricCipherKeyPair localKeyPair = generator.generateKeyPair();
+
+        // save private key
+        privateKeyParameters = (ECPrivateKeyParameters) localKeyPair.getPrivate();
+
+        // return public key to peer
+        ECPublicKeyParameters publicKeyParameters = (ECPublicKeyParameters) localKeyPair.getPublic();
+
+        return publicKeyParameters.getQ().getEncoded(true);
+    }
+
+    public void receivePeerValue(byte[] peerValue) throws IOException {
+        if (peerValue != null && peerValue.length == 31) {
+            this.publicKeyParameters = new ECPublicKeyParameters(this.dstuParams.getCurve().decodePoint(peerValue), this.dstuParams);
+        } else {
+            throw new TlsFatalAlert((short) 47);
+        }
+    }
+
+    public TlsSecret calculateSecret() throws IOException {
+        BcTlsSecret tlsSecret;
+        try {
+            ECDHCBasicAgreement agreement = new ECDHCBasicAgreement();
+            agreement.init(privateKeyParameters);
+            BigInteger sharedSecret = agreement.calculateAgreement(publicKeyParameters);
+            byte[] sharedSecretBytes = BigIntegers.asUnsignedByteArray(sharedSecret);
+            if (Arrays.areAllZeroes(sharedSecretBytes, 0, sharedSecretBytes.length)) {
+                throw new TlsFatalAlert((short) 40);
+            }
+            tlsSecret = new BcTlsSecret(crypto, sharedSecretBytes);
+        } finally {
+            privateKeyParameters = null;
+            publicKeyParameters = null;
+        }
+        return tlsSecret;
     }
 }
 
