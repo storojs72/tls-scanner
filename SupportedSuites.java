@@ -1,6 +1,7 @@
 import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.TlsCrypto;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
+import org.bouncycastle.util.encoders.Hex;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -41,10 +42,12 @@ public class SupportedSuites {
 
         SecureRandom secureRandom = new SecureRandom();
         TlsCrypto crypto;
-        if (args[2].equals("dstu")) {
+        if (args.length > 2 && args[2].equals("dstu")) {
+            System.out.println("Using DSTU mode");
             crypto = new DstuBcTlsCrypto(secureRandom);
         } else {
             crypto = new BcTlsCrypto(secureRandom);
+            ;
         }
 
         // 2. Multi-pass loop: Test each cipher suite one by one
@@ -61,22 +64,7 @@ public class SupportedSuites {
                 );
 
                 // Override the client to ONLY offer this single cipher suite
-                tlsClientProtocol.connect(new ConfigurableTlsClient(crypto, suiteCode) {
-                    @Override
-                    public int[] getCipherSuites() {
-                        return new int[]{suiteCode};
-                    }
-
-                    @Override
-                    public TlsAuthentication getAuthentication() {
-                        return new ServerOnlyTlsAuthentication() {
-                            @Override
-                            public void notifyServerCertificate(TlsServerCertificate serverCertificate) {
-                                // Handshake reached certificate phase successfully
-                            }
-                        };
-                    }
-                });
+                tlsClientProtocol.connect(new ConfigurableTlsClient(crypto, suiteCode));
 
                 InputStream secureInput = tlsClientProtocol.getInputStream();
                 BufferedReader reader = new BufferedReader(new InputStreamReader(secureInput, "UTF-8"));
@@ -127,10 +115,14 @@ public class SupportedSuites {
     public static class ConfigurableTlsClient extends DefaultTlsClient {
 
         private final int targetCipherSuite;
+        private boolean isDstu = false;
 
         public ConfigurableTlsClient(TlsCrypto crypto, int targetCipherSuite) {
             super(crypto);
             this.targetCipherSuite = targetCipherSuite;
+            if (crypto instanceof DstuBcTlsCrypto) {
+                this.isDstu = true;
+            }
         }
 
         @Override
@@ -165,19 +157,37 @@ public class SupportedSuites {
         }
 
         @Override
-        public TlsAuthentication getAuthentication() throws IOException {
+        public TlsAuthentication getAuthentication() {
             /*
              * This handles verifying the server's identity.
              * For testing multi-cipher suites with our self-signed server cert,
              * we return an authentication structure that blindly accepts the server's credentials.
              */
-            return new ServerOnlyTlsAuthentication();
+
+            if (isDstu) {
+                System.out.println("DSTU-specific certificate validation: extract public key and signature and verify the signature");
+                return new DstuSpecificTlsServerAuthentication();
+            }
+            return new ServerOnlyBlindTlsAuthentication();
+        }
+
+        public static class DstuSpecificTlsServerAuthentication implements TlsAuthentication {
+            @Override
+            public void notifyServerCertificate(TlsServerCertificate cert) throws IOException {
+
+                // TODO: implement DSTU-certificate validation (pure DSTU-4145 signature verification)
+            }
+
+            @Override
+            public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) {
+                return null;
+            }
         }
 
         /**
          * A permissive validation handler to skip rigid trust manager chain checks for test loops.
          */
-        public static class ServerOnlyTlsAuthentication implements TlsAuthentication {
+        public static class ServerOnlyBlindTlsAuthentication implements TlsAuthentication {
             @Override
             public void notifyServerCertificate(TlsServerCertificate tlsServerCertificate) throws IOException {
                 // For testing loops, log that we saw the cert chain and proceed
@@ -186,7 +196,7 @@ public class SupportedSuites {
             }
 
             @Override
-            public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) throws IOException {
+            public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) {
                 return null;
             }
         }

@@ -47,7 +47,8 @@ public class BouncyCastleTlsServer {
         // Initialize BC TLS crypto using secure PRNG
         SecureRandom secureRandom = new SecureRandom();
         TlsCrypto crypto;
-        if (args[1].equals("dstu")) {
+        if (args.length > 1 && args[1].equals("dstu")) {
+            System.out.println("Using DSTU mode");
             crypto = new DstuBcTlsCrypto(secureRandom);
         } else {
             crypto = new BcTlsCrypto(secureRandom);
@@ -108,8 +109,7 @@ public class BouncyCastleTlsServer {
             }
         } catch (TlsFatalAlert e) {
             // Catch specific TLS failures (like handshake_failure(40)) cleanly
-            System.err.println("[Server] TLS Handshake failed gracefully: " + e.getMessage()
-                    + " (Alert Description: " + e.getAlertDescription() + ")");
+            System.err.println("[Server] TLS Handshake failed gracefully: " + e.getMessage() + " (Alert Description: " + e.getAlertDescription() + ")");
             e.printStackTrace();
         } catch (IOException e) {
             System.err.println("[Server] Network I/O breakdown: " + e.getMessage());
@@ -223,8 +223,7 @@ public class BouncyCastleTlsServer {
                     }
 
                 default:
-                    throw new TlsFatalAlert(AlertDescription.internal_error,
-                            new IllegalStateException("Unsupported key exchange algorithm: " + keyExchangeAlgorithm));
+                    throw new TlsFatalAlert(AlertDescription.internal_error, new IllegalStateException("Unsupported key exchange algorithm: " + keyExchangeAlgorithm));
             }
         }
     }
@@ -245,8 +244,7 @@ public class BouncyCastleTlsServer {
             Date startDate = new Date(System.currentTimeMillis() - 86400000L); // Yesterday
             Date endDate = new Date(System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000); // 1 Year
 
-            X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
-                    dnName, certSerialNumber, startDate, endDate, dnName, keyPair.getPublic());
+            X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(dnName, certSerialNumber, startDate, endDate, dnName, keyPair.getPublic());
 
             ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate());
             X509Certificate certificate = new JcaX509CertificateConverter().getCertificate(certBuilder.build(contentSigner));

@@ -35,13 +35,13 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public TlsCipher createCipher(TlsCryptoParameters cryptoParams, int encryptionAlgorithm, int macAlgorithm) throws IOException {
         if (encryptionAlgorithm == EncryptionAlgorithm.AES_128_GCM) {
-            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM");
+//            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM");
             DstuBcTlsAEADCipherImpl encrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), true);
             DstuBcTlsAEADCipherImpl decrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), false);
             return new TlsAEADCipher(cryptoParams, encrypt, decrypt, 16, 16, 3, (AEADNonceGeneratorFactory) null);
         }
         if (encryptionAlgorithm == EncryptionAlgorithm.AES_256_GCM) {
-            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM");
+//            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM");
             DstuBcTlsAEADCipherImpl encrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), true);
             DstuBcTlsAEADCipherImpl decrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), false);
             return new TlsAEADCipher(cryptoParams, encrypt, decrypt, 32, 16, 3, (AEADNonceGeneratorFactory) null);
@@ -52,11 +52,11 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public Digest createDigest(int cryptoHashAlgorithm) {
         if (cryptoHashAlgorithm == HashAlgorithm.sha384) {
-            System.out.println("[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384");
+//            System.out.println("[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384");
             return new DstuSha384MockDigest();
         }
         if (cryptoHashAlgorithm == HashAlgorithm.sha256) {
-            System.out.println("[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256");
+//            System.out.println("[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256");
             return new DstuSha256MockDigest();
         }
         return super.createDigest(cryptoHashAlgorithm);
@@ -65,7 +65,7 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public TlsHash createHash(int cryptoHashAlgorithm) {
         if (cryptoHashAlgorithm == HashAlgorithm.sha384 || cryptoHashAlgorithm == HashAlgorithm.sha256) {
-            System.out.println("[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384");
+//            System.out.println("[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384");
             return new DstuBcTlsHash(this, cryptoHashAlgorithm);
         }
         return super.createHash(cryptoHashAlgorithm);
@@ -75,7 +75,7 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     public TlsECDomain createECDomain(TlsECConfig ecConfig) {
         // Check if the handshake is currently establishing an ECDH flow via secp256r1
         if (ecConfig.getNamedGroup() == NamedGroup.x25519) {
-            System.out.println("[DSTU-BC-CRYPTO.createECDomain] Instantiate DSTU 4145 curve (with identical parameters) instead of x25519");
+//            System.out.println("[DSTU-BC-CRYPTO.createECDomain] Instantiate DSTU 4145 curve (with identical parameters) instead of x25519");
             return new Dstu4145ECDomain(this);
         }
 
