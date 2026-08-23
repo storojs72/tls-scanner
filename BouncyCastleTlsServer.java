@@ -1,32 +1,36 @@
+import org.bouncycastle.asn1.ua.DSTU4145NamedCurves;
+import org.bouncycastle.asn1.ua.UAObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509CertificateHolder;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.digests.DSTU7564Digest;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.util.PrivateKeyFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.tls.*;
-import org.bouncycastle.tls.crypto.TlsCertificate;
-import org.bouncycastle.tls.crypto.TlsCrypto;
-import org.bouncycastle.tls.crypto.TlsCryptoParameters;
-import org.bouncycastle.tls.crypto.impl.bc.BcDefaultTlsCredentialedDecryptor;
-import org.bouncycastle.tls.crypto.impl.bc.BcDefaultTlsCredentialedSigner;
-import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
+import org.bouncycastle.tls.Certificate;
+import org.bouncycastle.tls.crypto.*;
+import org.bouncycastle.tls.crypto.impl.bc.*;
 
 import java.io.*;
 import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
 public class BouncyCastleTlsServer {
     // Keep the parsed components in-memory at startup
     private static TlsCertificate serverTlsCert;
-    private static AsymmetricKeyParameter serverPrivateKey;
+    private static PrivateKey serverPrivateKey;
 
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -44,18 +48,21 @@ public class BouncyCastleTlsServer {
             System.exit(1);
         }
 
+        System.out.println("Generating in-memory credentials using BC...");
+
         // Initialize BC TLS crypto using secure PRNG
         SecureRandom secureRandom = new SecureRandom();
         TlsCrypto crypto;
+
         if (args.length > 1 && args[1].equals("dstu")) {
             System.out.println("Using DSTU mode");
             crypto = new DstuBcTlsCrypto(secureRandom);
+            generateInMemoryDstu4145Credentials(crypto);
         } else {
             crypto = new BcTlsCrypto(secureRandom);
+            generateInMemoryCredentials(crypto);
         }
 
-        System.out.println("Generating in-memory credentials using BC...");
-        generateInMemoryCredentials(crypto);
         System.out.println("Starting server...");
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             while (true) {
@@ -160,7 +167,7 @@ public class BouncyCastleTlsServer {
              * Lazily construct BcDefaultTlsCredentialedSigner using the parameters object.
              */
             TlsCryptoParameters cryptoParams = new TlsCryptoParameters(this.context);
-            BcTlsCrypto bcCrypto = (BcTlsCrypto) getCrypto();
+            TlsCrypto bcCrypto = getCrypto();
 
             int keyExchangeAlgorithm = context.getSecurityParametersHandshake().getKeyExchangeAlgorithm();
 
@@ -187,6 +194,7 @@ public class BouncyCastleTlsServer {
                 // AND a non-null (empty) request context array.
                 System.out.println("[Server] Building TLS 1.3 compliant Certificate layout...");
                 java.util.Hashtable extensions = new java.util.Hashtable();
+
                 CertificateEntry certEntry = new CertificateEntry(serverTlsCert, extensions);
                 CertificateEntry[] certificateEntryList = new CertificateEntry[]{certEntry};
                 byte[] certificateRequestContext = new byte[0]; // Strict requirement for TLS 1.3
@@ -206,25 +214,71 @@ public class BouncyCastleTlsServer {
                 case KeyExchangeAlgorithm.RSA:
                     // Required for legacy plain "TLS_RSA_WITH_..." suites (Server decrypts pre-master secret)
                     System.out.println("[Server] Handshake requires an RSA Decryptor wrapper.");
-                    return new BcDefaultTlsCredentialedDecryptor(bcCrypto, localCertChain, serverPrivateKey);
+                    if (bcCrypto instanceof BcTlsCrypto) {
+                        return new BcDefaultTlsCredentialedDecryptor((BcTlsCrypto) bcCrypto, localCertChain, PrivateKeyFactory.createKey(serverPrivateKey.getEncoded()));
+                    }
+                    throw new RuntimeException("Unsupported crypto-provider");
 
                 case KeyExchangeAlgorithm.ECDHE_RSA:
                 case KeyExchangeAlgorithm.DHE_RSA:
                     // Required for modern ephemeral Diffie-Hellman suites (Server signs parameters)
                     System.out.println("[Server] Handshake requires an RSA Signer wrapper.");
-                    return new BcDefaultTlsCredentialedSigner(cryptoParams, bcCrypto, serverPrivateKey, localCertChain, selectedAlg);
+                    if (bcCrypto instanceof BcTlsCrypto) {
+                        return new BcDefaultTlsCredentialedSigner(cryptoParams, (BcTlsCrypto) bcCrypto, PrivateKeyFactory.createKey(serverPrivateKey.getEncoded()), localCertChain, selectedAlg);
+                    }
+                    throw new RuntimeException("Unsupported crypto-provider");
 
                 case KeyExchangeAlgorithm.NULL:
                     // TLS 1.3 completely eliminates explicit KeyExchangeAlgorithm constants in BC
                     // It relies on internal HKDF mechanisms, but still requires a Signer for the CertificateVerify packet
                     if (TlsUtils.isTLSv13(context)) {
                         System.out.println("[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.");
-                        return new BcDefaultTlsCredentialedSigner(cryptoParams, bcCrypto, serverPrivateKey, localCertChain, selectedAlg);
+                        if (bcCrypto instanceof DstuBcTlsCrypto) {
+                            System.out.println("[Server] Using DSTU-4145 signing of the CertificateVerify packet");
+                            return new BcDstuDefaultTlsCredentialedSigner(cryptoParams, serverPrivateKey, localCertChain, selectedAlg);
+                        }
+
+                        if (bcCrypto instanceof BcTlsCrypto) {
+                            return new BcDefaultTlsCredentialedSigner(cryptoParams, (BcTlsCrypto) bcCrypto, PrivateKeyFactory.createKey(serverPrivateKey.getEncoded()), localCertChain, selectedAlg);
+                        }
+                        throw new RuntimeException("Unsupported crypto-provider");
                     }
 
                 default:
                     throw new TlsFatalAlert(AlertDescription.internal_error, new IllegalStateException("Unsupported key exchange algorithm: " + keyExchangeAlgorithm));
             }
+        }
+    }
+
+    public static class BcDstuDefaultTlsCredentialedSigner extends DefaultTlsCredentialedSigner {
+        public BcDstuDefaultTlsCredentialedSigner(TlsCryptoParameters cryptoParams, PrivateKey privateKey, Certificate certificate, SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
+            super(cryptoParams, new BcTlsDstu4145Signer(privateKey), certificate, signatureAndHashAlgorithm);
+        }
+    }
+
+    public static class BcTlsDstu4145Signer implements TlsSigner {
+        PrivateKey privateKey;
+
+        public BcTlsDstu4145Signer(PrivateKey privateKey) {
+            this.privateKey = privateKey;
+        }
+
+        public byte[] generateRawSignature(SignatureAndHashAlgorithm algorithm, byte[] hash) {
+            byte[] signature = null;
+            try {
+                Signature signer = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+                signer.initSign(privateKey);
+                signer.update(hash);
+                signature = signer.sign();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return signature;
+        }
+
+        @Override
+        public TlsStreamSigner getStreamSigner(SignatureAndHashAlgorithm signatureAndHashAlgorithm) throws IOException {
+            return null;
         }
     }
 
@@ -249,12 +303,126 @@ public class BouncyCastleTlsServer {
             ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256withRSA").build(keyPair.getPrivate());
             X509Certificate certificate = new JcaX509CertificateConverter().getCertificate(certBuilder.build(contentSigner));
 
+            // just to ensure that certificate is verifiable
+            certificate.verify(certificate.getPublicKey());
+
             byte[] encodedCertBytes = certificate.getEncoded();
             serverTlsCert = crypto.createCertificate(encodedCertBytes);
-            serverPrivateKey = org.bouncycastle.crypto.util.PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded());
+            serverPrivateKey = keyPair.getPrivate();
 
+            System.out.println("Server's in-memory certificate has been generated");
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate structural BC credentials", e);
+        }
+    }
+
+    // In-memory DSTU certificate generator
+    public static void generateInMemoryDstu4145Credentials(TlsCrypto crypto) {
+        try {
+            // 1. Generate DSTU 4145 Key Pair (using 257-bit curve)
+            ECDomainParameters dstuParams = DSTU4145NamedCurves.getByOID(UAObjectIdentifiers.dstu4145le.branch("2.5"));
+
+            ECParameterSpec spec = new ECParameterSpec(
+                    dstuParams.getCurve(),
+                    dstuParams.getG(),
+                    dstuParams.getN(),
+                    dstuParams.getH()
+            );
+
+            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("DSTU4145", new BouncyCastleProvider());
+            keyGen.initialize(spec, new SecureRandom());
+            KeyPair keyPair = keyGen.generateKeyPair();
+
+
+            // 2. Set Up Certificate Metadata
+            X500Name dnName = new X500Name("CN=BouncyCastleTestServer, O=DevEnvironment, C=US");
+            BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis());
+            Date notBefore = new Date(System.currentTimeMillis() - 86400000L); // Yesterday
+            Date notAfter = new Date(System.currentTimeMillis() + 365L * 24 * 60 * 60 * 1000); // 1 Year
+
+            // 3. Build the Certificate Structure
+            SubjectPublicKeyInfo pubKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+
+            X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
+                    dnName,
+                    serialNumber,
+                    notBefore,
+                    notAfter,
+                    dnName,
+                    pubKeyInfo
+            );
+
+            Dstu4145ContentSigner contentSigner = new Dstu4145ContentSigner(keyPair.getPrivate());
+
+            X509CertificateHolder certificateHolder = certBuilder.build(contentSigner);
+            X509Certificate certificate = new JcaX509CertificateConverter()
+                    .setProvider(new BouncyCastleProvider())
+                    .getCertificate(certificateHolder);
+
+            serverTlsCert = crypto.createCertificate(certificate.getEncoded());
+
+            // 4. Just to ensure that certificate is verifiable
+            PublicKey publicKey = keyPair.getPublic();
+
+            Signature signer = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+            signer.initVerify(publicKey);
+
+            byte[] data = certificate.getTBSCertificate();
+            byte[] hash = new byte[32];
+            DSTU7564Digest digest = new DSTU7564Digest(256);
+            digest.update(data, 0, data.length);
+            digest.doFinal(hash, 0);
+
+            signer.update(hash);
+
+            boolean verified = signer.verify(certificate.getSignature());
+            System.out.println("Certificate generated and verified. Result:" + verified);
+
+            serverPrivateKey = keyPair.getPrivate();
+
+            System.out.println("DSTU-specific server's in-memory certificate has been generated");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate DSTU4145 credentials", e);
+        }
+    }
+
+    public static class Dstu4145ContentSigner implements ContentSigner {
+        private final ByteArrayOutputStream stream;
+        private final Signature signer;
+
+        public Dstu4145ContentSigner(PrivateKey privateKey) throws Exception {
+            signer = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+            signer.initSign(privateKey);
+            stream = new ByteArrayOutputStream();
+        }
+
+        @Override
+        public AlgorithmIdentifier getAlgorithmIdentifier() {
+            return new AlgorithmIdentifier(UAObjectIdentifiers.dstu4145le);
+        }
+
+        @Override
+        public OutputStream getOutputStream() {
+            return stream;
+        }
+
+        @Override
+        public byte[] getSignature() {
+            byte[] signature = null;
+            try {
+                byte[] dataToSign = stream.toByteArray();
+                byte[] hash = new byte[32];
+                DSTU7564Digest digest = new DSTU7564Digest(256);
+                digest.update(dataToSign, 0, dataToSign.length);
+                digest.doFinal(hash, 0);
+
+                signer.update(hash);
+
+                signature = signer.sign();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return signature;
         }
     }
 }

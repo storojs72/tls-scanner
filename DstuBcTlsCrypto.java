@@ -11,10 +11,7 @@ import org.bouncycastle.crypto.engines.DSTU7624Engine;
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
 import org.bouncycastle.crypto.modes.AEADBlockCipher;
 import org.bouncycastle.crypto.params.*;
-import org.bouncycastle.tls.EncryptionAlgorithm;
-import org.bouncycastle.tls.HashAlgorithm;
-import org.bouncycastle.tls.NamedGroup;
-import org.bouncycastle.tls.TlsFatalAlert;
+import org.bouncycastle.tls.*;
 import org.bouncycastle.tls.crypto.*;
 import org.bouncycastle.tls.crypto.impl.AEADNonceGeneratorFactory;
 import org.bouncycastle.tls.crypto.impl.TlsAEADCipher;
@@ -24,6 +21,7 @@ import org.bouncycastle.util.Arrays;
 import org.bouncycastle.util.BigIntegers;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 
@@ -35,13 +33,11 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public TlsCipher createCipher(TlsCryptoParameters cryptoParams, int encryptionAlgorithm, int macAlgorithm) throws IOException {
         if (encryptionAlgorithm == EncryptionAlgorithm.AES_128_GCM) {
-//            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM");
             DstuBcTlsAEADCipherImpl encrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), true);
             DstuBcTlsAEADCipherImpl decrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), false);
             return new TlsAEADCipher(cryptoParams, encrypt, decrypt, 16, 16, 3, (AEADNonceGeneratorFactory) null);
         }
         if (encryptionAlgorithm == EncryptionAlgorithm.AES_256_GCM) {
-//            System.out.println("[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM");
             DstuBcTlsAEADCipherImpl encrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), true);
             DstuBcTlsAEADCipherImpl decrypt = new DstuBcTlsAEADCipherImpl(this.createGCMMode(new DSTU7624Engine(128)), false);
             return new TlsAEADCipher(cryptoParams, encrypt, decrypt, 32, 16, 3, (AEADNonceGeneratorFactory) null);
@@ -52,11 +48,9 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public Digest createDigest(int cryptoHashAlgorithm) {
         if (cryptoHashAlgorithm == HashAlgorithm.sha384) {
-//            System.out.println("[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384");
             return new DstuSha384MockDigest();
         }
         if (cryptoHashAlgorithm == HashAlgorithm.sha256) {
-//            System.out.println("[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256");
             return new DstuSha256MockDigest();
         }
         return super.createDigest(cryptoHashAlgorithm);
@@ -65,7 +59,6 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     @Override
     public TlsHash createHash(int cryptoHashAlgorithm) {
         if (cryptoHashAlgorithm == HashAlgorithm.sha384 || cryptoHashAlgorithm == HashAlgorithm.sha256) {
-//            System.out.println("[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384");
             return new DstuBcTlsHash(this, cryptoHashAlgorithm);
         }
         return super.createHash(cryptoHashAlgorithm);
@@ -75,12 +68,60 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
     public TlsECDomain createECDomain(TlsECConfig ecConfig) {
         // Check if the handshake is currently establishing an ECDH flow via secp256r1
         if (ecConfig.getNamedGroup() == NamedGroup.x25519) {
-//            System.out.println("[DSTU-BC-CRYPTO.createECDomain] Instantiate DSTU 4145 curve (with identical parameters) instead of x25519");
             return new Dstu4145ECDomain(this);
         }
 
         // Otherwise, allow any other curves/handshakes to process natively without modification
         return super.createECDomain(ecConfig);
+    }
+
+    @Override
+    public TlsCertificate createCertificate(byte[] encoding) throws IOException {
+        return new Dstu4145TlsCertificate(this, encoding);
+    }
+}
+
+class Dstu4145TlsCertificate extends BcTlsCertificate {
+    public Dstu4145TlsCertificate(DstuBcTlsCrypto crypto, byte[] encoding) throws IOException {
+        super(crypto, encoding);
+    }
+
+    @Override
+    public Tls13Verifier createVerifier(int signatureScheme) throws IOException {
+        return new Dstu4145Tls13Verifier();
+    }
+
+    @Override
+    public TlsVerifier createVerifier(short signatureScheme) {
+        return new Dstu4145TlsVerifier();
+    }
+}
+
+class Dstu4145Tls13Verifier implements Tls13Verifier {
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return null;
+    }
+
+    @Override
+    public boolean verifySignature(byte[] bytes) throws IOException {
+        System.out.println("Calling verifySignature in DSTU mode (TLS 1.3)");
+        // Stub to by-pass CertificateVerify packet validation during handshaking
+        return true;
+    }
+}
+
+class Dstu4145TlsVerifier implements TlsVerifier {
+    @Override
+    public TlsStreamVerifier getStreamVerifier(DigitallySigned digitallySigned) throws IOException {
+        return null;
+    }
+
+    @Override
+    public boolean verifyRawSignature(DigitallySigned digitallySigned, byte[] bytes) throws IOException {
+        System.out.println("Calling verifySignature in DSTU mode");
+        // Stub to by-pass CertificateVerify packet validation during handshaking
+        return true;
     }
 }
 
