@@ -9,10 +9,10 @@ COPY lib/bctls*.jar bctls.jar
 COPY lib/bcutil*.jar bcutil.jar
 COPY lib/bcpkix*.jar bcpkix.jar
 COPY BouncyCastleTlsServer.java .
-COPY SharedTlsConfig.java .
+COPY SharedTlsCryptoConfig.java .
 
 # Compile using your local Bouncy Castle files
-RUN javac -cp "bcprov.jar:bctls.jar:bcutil.jar:bcpkix.jar" SharedTlsConfig.java BouncyCastleTlsServer.java
+RUN javac -cp "bcprov.jar:bctls.jar:bcutil.jar:bcpkix.jar" SharedTlsCryptoConfig.java BouncyCastleTlsServer.java
 
 EXPOSE ${SERVER_PORT}
 

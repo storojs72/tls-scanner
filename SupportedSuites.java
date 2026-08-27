@@ -40,7 +40,7 @@ public class SupportedSuites {
 
         // 1. Gather cipher suites that we want to test
         //List<Integer> allSuites = getAllKnownCipherSuites();
-        List<Integer> allSuites = Arrays.stream(SharedTlsConfig.MY_CUSTOM_SUITES).boxed().toList();
+        List<Integer> allSuites = Arrays.stream(SharedTlsCryptoConfig.MY_CUSTOM_SUITES).boxed().toList();
         List<String> supportedSuites = new ArrayList<>();
 
         System.out.println("Scanning " + host + " on port " + port + " across " + allSuites.size() + " cipher suites...");
@@ -228,6 +228,7 @@ public class SupportedSuites {
 
                     Signature sgr = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
                     SubjectPublicKeyInfo publicKeyInfo = asn1Structure.getSubjectPublicKeyInfo();
+                    System.out.println("Public key size: " + publicKeyInfo.getEncoded().length);
 
                     KeyFactory keyFactory = KeyFactory.getInstance("DSTU4145", new BouncyCastleProvider());
                     KeySpec keySpec = new X509EncodedKeySpec(publicKeyInfo.getEncoded());

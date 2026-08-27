@@ -1,4 +1,3 @@
-import org.bouncycastle.asn1.ua.DSTU4145NamedCurves;
 import org.bouncycastle.asn1.ua.UAObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
@@ -147,13 +146,13 @@ public class BouncyCastleTlsServer {
         @Override
         public int[] getCipherSuites() {
             // Exclusively allow the suites defined in our shared configuration
-            return SharedTlsConfig.MY_CUSTOM_SUITES;
+            return SharedTlsCryptoConfig.MY_CUSTOM_SUITES;
         }
 
         @Override
         public int[] getSupportedCipherSuites() {
             // Force the absolute lowest engine limits to natively allow your custom choices
-            return SharedTlsConfig.MY_CUSTOM_SUITES;
+            return SharedTlsCryptoConfig.MY_CUSTOM_SUITES;
         }
 
         @Override
@@ -320,7 +319,7 @@ public class BouncyCastleTlsServer {
     public static void generateInMemoryDstu4145Credentials(TlsCrypto crypto) {
         try {
             // 1. Generate DSTU 4145 Key Pair (using 257-bit curve)
-            ECDomainParameters dstuParams = DSTU4145NamedCurves.getByOID(UAObjectIdentifiers.dstu4145le.branch("2.5"));
+            ECDomainParameters dstuParams = SharedTlsCryptoConfig.DSTU4145_CURVE_ID;
 
             ECParameterSpec spec = new ECParameterSpec(
                     dstuParams.getCurve(),
@@ -342,6 +341,8 @@ public class BouncyCastleTlsServer {
 
             // 3. Build the Certificate Structure
             SubjectPublicKeyInfo pubKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+
+            System.out.println("Public key size: " + pubKeyInfo.getEncoded().length);
 
             X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(
                     dnName,

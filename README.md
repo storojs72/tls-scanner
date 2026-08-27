@@ -16,7 +16,7 @@ brew install openjdk
 
 ```
 javac -cp "lib/*" -d out TlsTest.java
-javac -cp "lib/*" -d out SharedTlsConfig.java SupportedSuites.java
+javac -cp "lib/*" -d out SharedTlsCryptoConfig.java SupportedSuites.java
 ```
 
 ## Run
@@ -127,7 +127,7 @@ docker run -d -p 8443:8443 --name my-bc-server bc-tls-server
 
 Above commands will create and run BC-based TLS server inside docker container, available for establishing connections:
 
-Executing `SupportedSuites` scanner (with cipher suites taken from `SharedTlsConfig.java`):
+Executing `SupportedSuites` scanner (with cipher suites taken from `SharedTlsCryptoConfig.java`):
 ```
 tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 8443
 Scanning localhost on port 8443 across 9 cipher suites...
@@ -216,7 +216,7 @@ It is also possible to enable experimental DSTU algorithms substitution inside e
 In this case server needs to be specifically compiled and launched with `dstu` flag:
 
 ```
-javac -cp "lib/*" -d out SharedTlsConfig.java DstuBcTlsCrypto.java BouncyCastleTlsServer.java
+javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java BouncyCastleTlsServer.java
 tls-scanner % java -cp "lib/*:out" BouncyCastleTlsServer 8443 dstu
 Generating in-memory credentials using BC...
 Starting server...
@@ -448,7 +448,7 @@ tls-scanner %
 Client:
 
 ```
-javac -cp "lib/*" -d out SharedTlsConfig.java DstuBcTlsCrypto.java SupportedSuites.java
+javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java SupportedSuites.java
 java -cp "lib/*:out" SupportedSuites localhost 8443 dstu
 Scanning localhost on port 8443 across 9 cipher suites...
 This may take a moment as we test suites individually...
