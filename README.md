@@ -16,7 +16,7 @@ brew install openjdk
 
 ```
 javac -cp "lib/*" -d out TlsTest.java
-javac -cp "lib/*" -d out SharedTlsCryptoConfig.java SupportedSuites.java
+javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java SupportedSuites.java
 ```
 
 ## Run
@@ -212,237 +212,56 @@ Starting server...
 tls-scanner % 
 ``` 
 
-It is also possible to enable experimental DSTU algorithms substitution inside established TLS session (AES-GCM -> DSTU7624-GCM, SHA -> DSTU7564).
+It is also possible to enable experimental DSTU algorithms substitution inside established TLS session.
+In this mode the default TLS cryptography specified in cipher-suite is replaced by DSTU algorithms:
+ - AES-GCM -> DSTU7624-GCM,
+ - SHA -> DSTU7564,
+ - Diffie-Hellman with X25519 -> Diffie-Hellman with DSTU curve,
+ - RSAwithSha256 signed certificate -> DSTU4145 signed certificate
+
+Concrete DSTU curve used for signature and Diffie-Hellman algorithm can also be configured.
+
+Important note: The CertificateVerify packet validation with DSTU4145 signing/verifying is not currently
+supported as it requires modifying some internals of `bctls` library, so currently it is stubbed. Also,
+TLS 1.2 is not currently supported in DSTU-mode (and stubbing it - not possible in current setup)
+for the same reasons.
+
 In this case server needs to be specifically compiled and launched with `dstu` flag:
 
 ```
 javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java BouncyCastleTlsServer.java
 tls-scanner % java -cp "lib/*:out" BouncyCastleTlsServer 8443 dstu
+
 Generating in-memory credentials using BC...
+Using DSTU mode
+Public key size: 276
+Certificate generated and verified. Result:true
+DSTU-specific server's in-memory certificate has been generated
 Starting server...
-[Server] Raw TCP connection accepted from: /127.0.0.1:56416
+[Server] Raw TCP connection accepted from: /127.0.0.1:58644
 [Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
+[Server] Using DSTU-4145 signing of the CertificateVerify packet
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56417
+[Server] Raw TCP connection accepted from: /127.0.0.1:58645
 [Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
+[Server] Using DSTU-4145 signing of the CertificateVerify packet
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56418
+[Server] Raw TCP connection accepted from: /127.0.0.1:58646
 [Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
+[Server] Using DSTU-4145 signing of the CertificateVerify packet
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56419
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56420
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56421
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56422
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56423
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Decryptor wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:56424
-[Server] Initiating Bouncy Castle TLS handshake...
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Decryptor wrapper.
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[Server] Handshake completed successfully.
-[Server] Received message: "GET / HTTP/1.1"
-[Server] Worker thread execution finished. Socket released.
-tls-scanner %
 ```
 
 Client:
@@ -450,195 +269,39 @@ Client:
 ```
 javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java SupportedSuites.java
 java -cp "lib/*:out" SupportedSuites localhost 8443 dstu
-Scanning localhost on port 8443 across 9 cipher suites...
+tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 8443 dstu
+Scanning localhost on port 8443 across 3 cipher suites...
 This may take a moment as we test suites individually...
 
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
+Using DSTU mode
+DSTU-specific certificate validation: extract public key and signature and verify the signature
+Public key size: 276
+[Client-Auth] Server's certificate validation (in DSTU mode) is OK
+Calling verifySignature in DSTU mode (TLS 1.3)
+Connected!!!
 --- Decrypted Payload Response from Server ---
 Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
+DSTU-specific certificate validation: extract public key and signature and verify the signature
+Public key size: 276
+[Client-Auth] Server's certificate validation (in DSTU mode) is OK
+Calling verifySignature in DSTU mode (TLS 1.3)
+Connected!!!
 --- Decrypted Payload Response from Server ---
 Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_256_GCM
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
-[DSTU-BC-CRYPTO.createDigest_384] Instantiate DSTU 7564 (with identical parameters) instead of SHA384
---- Decrypted Payload Response from Server ---
-Hello from the pure Bouncy Castle TLS Server!
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createHash] Instantiate DSTU 7564 (with identical parameters) instead of SHA256/384
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createCipher] Instantiate DSTU 7624 (with identical parameters) instead of AES_128_GCM
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
-[DSTU-BC-CRYPTO.createDigest_256] Instantiate DSTU 7564 (with identical parameters) instead of SHA256
+DSTU-specific certificate validation: extract public key and signature and verify the signature
+Public key size: 276
+[Client-Auth] Server's certificate validation (in DSTU mode) is OK
+Calling verifySignature in DSTU mode (TLS 1.3)
+Connected!!!
 --- Decrypted Payload Response from Server ---
 Hello from the pure Bouncy Castle TLS Server!
 ========================================
  Scan Results for: localhost
 ========================================
-The server accepted the following 9 suite(s):
+The server accepted the following 3 suite(s):
  - TLS_AES_256_GCM_SHA384 (0x1302)
  - TLS_AES_128_GCM_SHA256 (0x1301)
  - TLS_CHACHA20_POLY1305_SHA256 (0x1303)
- - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (0xC030)
- - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (0xC02F)
- - TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 (0x9F)
- - TLS_DHE_RSA_WITH_AES_128_GCM_SHA256 (0x9E)
- - TLS_RSA_WITH_AES_256_GCM_SHA384 (0x9D)
- - TLS_RSA_WITH_AES_128_GCM_SHA256 (0x9C)
 ========================================
+tls-scanner %
 ```

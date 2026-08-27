@@ -10,12 +10,12 @@ public class SharedTlsCryptoConfig {
             CipherSuite.TLS_AES_256_GCM_SHA384,            // TLS 1.3
             CipherSuite.TLS_AES_128_GCM_SHA256,            // TLS 1.3
             CipherSuite.TLS_CHACHA20_POLY1305_SHA256,      // TLS 1.3
-            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, // TLS 1.2 (ECDHE-RSA)
-            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, // TLS 1.2 (ECDHE-RSA)
-            CipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,   // TLS 1.2 (DHE-RSA)
-            CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,   // TLS 1.2 (DHE-RSA)
-            CipherSuite.TLS_RSA_WITH_AES_256_GCM_SHA384,       // TLS 1.2 (Plain RSA)
-            CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256,       // TLS 1.2 (Plain RSA)
+//            CipherSuite.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, // TLS 1.2 (ECDHE-RSA)
+//            CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, // TLS 1.2 (ECDHE-RSA)
+//            CipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,   // TLS 1.2 (DHE-RSA)
+//            CipherSuite.TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,   // TLS 1.2 (DHE-RSA)
+//            CipherSuite.TLS_RSA_WITH_AES_256_GCM_SHA384,       // TLS 1.2 (Plain RSA)
+//            CipherSuite.TLS_RSA_WITH_AES_128_GCM_SHA256,       // TLS 1.2 (Plain RSA)
     };
 
     public static ECDomainParameters DSTU4145_CURVE_ID = ConfigUtils.getDstu4145Curve(ConfigUtils.Dstu4145Curve.M257);
