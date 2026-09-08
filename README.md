@@ -8,14 +8,13 @@ The project contains source code of `bctls` library (v2.73.11) which is compiled
 
 - `common` library is a wrapper for `bctls` dependency
 - `tlstest` cmd-line application for simple testing that TLS connection can be established with the host using default 0x1303 cipher suite (TLS_CHACHA20_POLY1305_SHA256)
-- `scanner` cmd-line application for establishing multiple TLS handshakes one-by-one by iterating cipher suites from `SharedTlsCryptoConfig.java`.
-
+- `scanner` cmd-line application for establishing multiple TLS handshakes one-by-one by iterating cipher suites from `SharedTlsCryptoConfig.java`
+- `tlsserver` cmd-line application - server based on `bctls` used for debugging `scanner` application
 
 ## Prerequisites
 
-
-Project uses Gradle build system, so You need to have Gradle (v9.7.1) and OpenJDK (v26.0.2.1) as prerequisite.
-If not installed, try setting it via homebrew:
+Project uses Gradle build system, so You need to have Gradle (v9.7.1) and OpenJDK (v26.0.2.1) as prerequisites.
+If not installed, try installing them via homebrew:
 
 ```
 brew install openjdk
@@ -93,7 +92,7 @@ docker run -d --name weak-tls-server \
 	-v $(pwd)/nginx-tls/server.key:/etc/nginx/ssl/server.key nginx
 ```
 
-In this case `SupportedSuites` scanner can establish more TLS connections (including weak):
+In this case `scanner` can establish more TLS connections:
 ```
 tls-scanner % ./gradlew :executables:scanner:run --args "localhost 443"
 
@@ -155,7 +154,7 @@ Consider enabling configuration cache to speed up this build: https://docs.gradl
 artemstorozhuk@Artems-MacBook-Pro tls-scanner %
 ```
 
-For scanner' development purposes there is a BouncyCastle-based TLS server that could be useful for debugging handshakes with custom cipher suites:
+For `scanner` development purposes there is a BouncyCastle-based TLS server that could be useful for debugging handshakes with custom cipher suites:
 
 Logs from `tlsserver`:
 ```
