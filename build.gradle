@@ -1,0 +1,6 @@
+// This file can remain blank or hold global repository setups
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}

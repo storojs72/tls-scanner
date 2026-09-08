@@ -1,0 +1,67 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    mavenCentral()
+}
+
+// Custom configuration to resolve dependencies for the module compiler argument
+configurations {
+    customModulePath {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    // Both standard compile and custom module paths need the LTS dependencies
+    compileOnly 'org.bouncycastle:bcprov-lts8on:2.73.11'
+    compileOnly 'org.bouncycastle:bcutil-lts8on:2.73.11'
+
+    customModulePath 'org.bouncycastle:bcprov-lts8on:2.73.11'
+    customModulePath 'org.bouncycastle:bcutil-lts8on:2.73.11'
+}
+
+// 1. Force the main compilation task to target Java 8 and ignore Java 9 sources
+tasks.compileJava {
+    options.release = 8
+}
+
+// 2. Create a custom task to compile the Java 9+ specific files
+task compileJava9(type: JavaCompile) {
+    dependsOn tasks.compileJava
+
+    source = fileTree('src/main/java9')
+    destinationDirectory = file("$buildDir/classes/java/java9")
+
+    // Updated for Gradle 9 compatibility
+    classpath = sourceSets.main.compileClasspath + files(tasks.compileJava.destinationDirectory)
+
+    options.release = 9
+    options.compilerArgs.addAll([
+            '--module-path', configurations.customModulePath.asPath,
+            // Using the .get() method to cleanly fetch the Provider path in Gradle 9
+            '--patch-module', "org.bouncycastle.lts.tls=${tasks.compileJava.destinationDirectory.get().asFile.absolutePath}"
+    ])
+}
+
+// 3. Assemble them into a proper Multi-Release JAR
+jar {
+    dependsOn compileJava9
+    archiveFileName = 'bctls-lts8on-2.73.11.jar'
+
+    // Include the Java 9 classes into the correct MRJAR internal path
+    into('META-INF/versions/9') {
+        from fileTree("$buildDir/classes/java/java9")
+    }
+
+    manifest {
+        attributes(
+                'Implementation-Title': 'Bouncy Castle TLS/JSSE Provider',
+                'Implementation-Version': '2.73.11',
+                'Implementation-Vendor': 'Bouncy Castle Project',
+                'Multi-Release': 'true' // Highly critical attribute for JVM to recognize it
+        )
+    }
+}

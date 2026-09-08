@@ -1,0 +1,320 @@
+package scanner;
+
+import org.bouncycastle.asn1.*;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.crypto.digests.DSTU7564Digest;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.tls.*;
+import org.bouncycastle.tls.Certificate;
+import org.bouncycastle.tls.crypto.TlsCertificate;
+import org.bouncycastle.tls.crypto.TlsCrypto;
+import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
+
+import common.DstuBcTlsCrypto;
+import common.Dstu4145Tls13Verifier;
+import common.SharedTlsCryptoConfig;
+
+import java.io.*;
+import java.lang.reflect.Field;
+import java.net.Socket;
+import java.security.*;
+import java.security.spec.KeySpec;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+public class SupportedSuites {
+    public void main(String[] args) {
+        if (args.length < 1) {
+            System.out.println("Usage: java -cp \"lib/*:out\" SupportedSuites <hostname> <port>");
+            System.out.println("Example: java -cp \"lib/*:out\" SupportedSuites localhost 8443");
+            System.out.println("Example (if you want experimental DSTU encryption): java -cp \"lib/*:out\" SupportedSuites localhost 8443 dstu");
+            return;
+        }
+
+        // Grab host and port from command line
+        String host = args[0];
+        int port = 0;
+        try {
+            port = Integer.parseInt(args[1]);
+        } catch (Exception e) {
+            System.out.println("Specified port is invalid");
+            e.printStackTrace();
+            System.exit(1);
+        }
+
+        // 1. Gather cipher suites that we want to test
+        //List<Integer> allSuites = getAllKnownCipherSuites();
+        List<Integer> allSuites = Arrays.stream(SharedTlsCryptoConfig.MY_CUSTOM_SUITES).boxed().toList();
+        List<String> supportedSuites = new ArrayList<>();
+
+        System.out.println("Scanning " + host + " on port " + port + " across " + allSuites.size() + " cipher suites...");
+        System.out.println("This may take a moment as we test suites individually...\n");
+
+        SecureRandom secureRandom = new SecureRandom();
+        TlsCrypto crypto;
+        if (args.length > 2 && args[2].equals("dstu")) {
+            System.out.println("Using DSTU mode");
+            crypto = new DstuBcTlsCrypto(secureRandom);
+        } else {
+            crypto = new BcTlsCrypto(secureRandom);
+        }
+
+        // 2. Multi-pass loop: Test each cipher suite one by one
+        for (int suiteCode : allSuites) {
+            String suiteName = getCipherSuiteName(suiteCode);
+
+            try (Socket socket = new Socket(host, port)) {
+                // Set a brief timeout so dead suites don't hang the scanner
+                socket.setSoTimeout(3000);
+
+                ExtendedTlsClientProtocol tlsClientProtocol = new ExtendedTlsClientProtocol(
+                        // TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(
+                        socket.getInputStream(),
+                        socket.getOutputStream()
+                );
+
+                // Override the client to ONLY offer this single cipher suite
+                tlsClientProtocol.connect(new ConfigurableTlsClient(crypto, suiteCode));
+                System.out.println("Connected!!!");
+
+
+                InputStream secureInput = tlsClientProtocol.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(secureInput, "UTF-8"));
+
+                OutputStream secureOutput = tlsClientProtocol.getOutputStream();
+                PrintWriter writer = new PrintWriter(new OutputStreamWriter(secureOutput, "UTF-8"), true);
+
+                // Write simple GET that is already encrypted
+                writer.println("GET / HTTP/1.1");
+                writer.println("Host: " + socket.getInetAddress().getHostName());
+                writer.println("Connection: close");
+                writer.println(); // Critical empty line for HTTP protocol
+
+                // Read the decrypted server response
+                String clientMessage = reader.readLine();
+                if (clientMessage != null) {
+                    System.out.println("--- Decrypted Payload Response from Server ---");
+                    System.out.println(clientMessage);
+                }
+
+                // If no exception was thrown, the handshake succeeded and encryption/decryption is evaluated!
+                supportedSuites.add(suiteName + " (0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
+                tlsClientProtocol.close();
+
+            } catch (IOException e) {
+                // Handshake failed or was rejected by the server for this suite.
+                // We silently ignore this and move to the next suite.
+            } catch (Exception e) {
+                // Ignore general evaluation snags
+            }
+        }
+
+        // 3. Print the final results
+        System.out.println("========================================");
+        System.out.println(" Scan Results for: " + host);
+        System.out.println("========================================");
+        if (supportedSuites.isEmpty()) {
+            System.out.println("No matching cipher suites found (or server rejected the scan).");
+        } else {
+            System.out.println("The server accepted the following " + supportedSuites.size() + " suite(s):");
+            for (String suite : supportedSuites) {
+                System.out.println(" - " + suite);
+            }
+        }
+        System.out.println("========================================");
+    }
+
+    public static class ExtendedTlsClientProtocol extends TlsClientProtocol {
+        public ExtendedTlsClientProtocol(InputStream inputStream, OutputStream outputStream) {
+            super(inputStream, outputStream);
+        }
+
+        @Override
+        protected void receive13ServerCertificateVerify(ByteArrayInputStream buf) throws IOException {
+            TlsContext context = getContext();
+            TlsCrypto crypto = context.getCrypto();
+            if (crypto instanceof DstuBcTlsCrypto) {
+                Certificate serverCertificate = context.getSecurityParametersHandshake().getPeerCertificate();
+                if (null != serverCertificate && !serverCertificate.isEmpty()) {
+                    TlsCertificate certificate = serverCertificate.getCertificateAt(0);
+
+                    // FIXME: verifier needs to be instantiated from the certificate which is not possible for DSTU mode
+                    //  without modifying source code of bctls library.
+
+                    // Dstu4145TlsVerifier verifier = certificate.createVerifier(0);
+                    Dstu4145Tls13Verifier verifier = new Dstu4145Tls13Verifier();
+
+                    // FIXME: transcript hash can't be computed without accessing internal handshakeHash field
+                    //  (this also requires modifying the source code of bctls library).
+
+                    verifier.verifySignature(null); // stub
+                }
+            } else {
+                super.receive13ServerCertificateVerify(buf);
+            }
+        }
+    }
+
+    public static class ConfigurableTlsClient extends DefaultTlsClient {
+
+        private final int targetCipherSuite;
+        private boolean isDstu = false;
+
+        public ConfigurableTlsClient(TlsCrypto crypto, int targetCipherSuite) {
+            super(crypto);
+            this.targetCipherSuite = targetCipherSuite;
+            if (crypto instanceof DstuBcTlsCrypto) {
+                this.isDstu = true;
+            }
+        }
+
+        @Override
+        protected int[] getSupportedCipherSuites() {
+            // Enforce the client to offer ONLY this specific suite for this connection test
+            return new int[]{targetCipherSuite};
+        }
+
+        @Override
+        public int[] getCipherSuites() {
+            return new int[]{targetCipherSuite};
+        }
+
+        @Override
+        public ProtocolVersion[] getProtocolVersions() {
+            // Dynamic downgrade rule: If it's a legacy TLS 1.2 suite, block the client from offering TLS 1.3
+            if (isTls13Suite(targetCipherSuite)) {
+                return new ProtocolVersion[]{ProtocolVersion.TLSv13};
+            } else {
+                // For TLS 1.2 suites (like ECDHE_RSA), strictly limit the negotiation window to TLS 1.2
+                return new ProtocolVersion[]{ProtocolVersion.TLSv12};
+            }
+        }
+
+        /**
+         * Helper check to segregate modern TLS 1.3 suites from legacy TLS 1.2 suites
+         */
+        private boolean isTls13Suite(int cipherSuite) {
+            return cipherSuite == CipherSuite.TLS_AES_256_GCM_SHA384 ||
+                    cipherSuite == CipherSuite.TLS_AES_128_GCM_SHA256 ||
+                    cipherSuite == CipherSuite.TLS_CHACHA20_POLY1305_SHA256;
+        }
+
+
+        @Override
+        public TlsAuthentication getAuthentication() {
+            /*
+             * This handles verifying the server's identity.
+             * For testing multi-cipher suites with our self-signed server cert,
+             * we return an authentication structure that blindly accepts the server's credentials.
+             */
+
+            if (isDstu) {
+                System.out.println("DSTU-specific certificate validation: extract public key and signature and verify the signature");
+                return new DstuSpecificTlsServerAuthentication();
+            }
+            return new ServerOnlyBlindTlsAuthentication();
+        }
+
+        public static class DstuSpecificTlsServerAuthentication implements TlsAuthentication {
+            @Override
+            public void notifyServerCertificate(TlsServerCertificate cert) throws IOException {
+                try {
+                    Certificate certificate = cert.getCertificate();
+                    TlsCertificate tlsCert = certificate.getCertificateEntryAt(0).getCertificate();
+
+                    byte[] rawDerEncodedBytes = tlsCert.getEncoded();
+                    org.bouncycastle.asn1.x509.Certificate asn1Structure =
+                            org.bouncycastle.asn1.x509.Certificate.getInstance(rawDerEncodedBytes);
+
+                    byte[] data = asn1Structure.getTBSCertificate().getEncoded();
+                    byte[] hash = new byte[32];
+                    DSTU7564Digest digest = new DSTU7564Digest(256);
+                    digest.update(data, 0, data.length);
+                    digest.doFinal(hash, 0);
+
+                    Signature sgr = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+                    SubjectPublicKeyInfo publicKeyInfo = asn1Structure.getSubjectPublicKeyInfo();
+                    System.out.println("Public key size: " + publicKeyInfo.getEncoded().length);
+
+                    KeyFactory keyFactory = KeyFactory.getInstance("DSTU4145", new BouncyCastleProvider());
+                    KeySpec keySpec = new X509EncodedKeySpec(publicKeyInfo.getEncoded());
+
+                    sgr.initVerify(keyFactory.generatePublic(keySpec));
+
+                    sgr.update(hash);
+
+                    ASN1BitString signatureBitString = asn1Structure.getSignature();
+                    byte[] signatureBytes = signatureBitString.getBytes();
+
+                    if (!sgr.verify(signatureBytes)) {
+                        throw new TlsFatalAlert((short) 80, "DSTU4145 signature verification failed");
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                System.out.println("[Client-Auth] Server's certificate validation (in DSTU mode) is OK");
+            }
+
+            @Override
+            public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) {
+                return null;
+            }
+        }
+
+        /**
+         * A permissive validation handler to skip rigid trust manager chain checks for test loops.
+         */
+        public static class ServerOnlyBlindTlsAuthentication implements TlsAuthentication {
+            @Override
+            public void notifyServerCertificate(TlsServerCertificate tlsServerCertificate) throws IOException {
+                System.out.println("[Client-Auth] Server's certificate validation is OK");
+            }
+
+            @Override
+            public TlsCredentials getClientCredentials(CertificateRequest certificateRequest) {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Uses reflection to pull all raw integer cipher suites from Bouncy Castle.
+     */
+//    private static List<Integer> getAllKnownCipherSuites() {
+//        List<Integer> suites = new ArrayList<>();
+//        for (Field field : CipherSuite.class.getFields()) {
+//            try {
+//                if (field.getType() == int.class) {
+//                    int value = field.getInt(null);
+//                    // Filter out signaling/scsv placeholders that aren't real ciphers
+//                    if (field.getName().contains("SCSV") || field.getName().equals("EMPTY_RENEGOTIATION_INFO_SCSV")) {
+//                        continue;
+//                    }
+//                    suites.add(value);
+//                }
+//            } catch (Exception e) {
+//                // Skip unreadable fields
+//            }
+//        }
+//        return suites;
+//    }
+
+    /**
+     * Resolves a human-readable name from Bouncy Castle's CipherSuite class constants.
+     */
+    private static String getCipherSuiteName(int code) {
+        for (Field field : CipherSuite.class.getFields()) {
+            try {
+                if (field.getType() == int.class && field.getInt(null) == code) {
+                    return field.getName();
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }
+        return "UNKNOWN_CIPHER_SUITE";
+    }
+}

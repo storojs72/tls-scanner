@@ -1,0 +1,19 @@
+plugins {
+    id 'application' // Enables the application plugin to run your main method
+}
+
+dependencies {
+    // This creates an active link directly to your modified Bouncy Castle source project
+    implementation project(':bctls-source')
+    implementation project(':executables:common')
+
+    // Provide standard runtime requirements for BC if needed by your CLI app
+    implementation 'org.bouncycastle:bcprov-lts8on:2.73.11'
+    implementation 'org.bouncycastle:bcutil-lts8on:2.73.11'
+    implementation 'org.bouncycastle:bcpkix-lts8on:2.73.11'
+}
+
+application {
+    // Define the main class of your command-line application
+    mainClass = 'tlsserver.BouncyCastleTlsServer'
+}

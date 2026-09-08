@@ -4,66 +4,80 @@ Basic scanner of TLS connections via BouncyCastle crypto-provider.
 
 Tested only on MacOS currently.
 
+The project contains source code of `bctls` library (v2.73.11) which is compiled under-the-hood and used as a dependency for applications located in `executables/`:
+
+- `common` library is a wrapper for `bctls` dependency
+- `tlstest` cmd-line application for simple testing that TLS connection can be established with the host using default 0x1303 cipher suite (TLS_CHACHA20_POLY1305_SHA256)
+- `scanner` cmd-line application for establishing multiple TLS handshakes one-by-one by iterating cipher suites from `SharedTlsCryptoConfig.java`.
+
+
 ## Prerequisites
 
-You need to have JAVA installed. If not installed, try setting it via homebrew:
+
+Project uses Gradle build system, so You need to have Gradle (v9.7.1) and OpenJDK (v26.0.2.1) as prerequisite.
+If not installed, try setting it via homebrew:
 
 ```
 brew install openjdk
+brew install gradle
 ```
 
-## Build
+## Build and Run
 
 ```
-javac -cp "lib/*" -d out TlsTest.java
-javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java SupportedSuites.java
-```
+tls-scanner % ./gradlew :executables:tlstest:run --args "github.com 443"
 
-## Run
-
-```
-tls-scanner % java -cp "lib/*:out" TlsTest cloudflare.com 443
-Connecting to cloudflare.com on port 443...
+> Task :executables:tlstest:run
+Connecting to github.com on port 443...
 Handshake successful! Server certificate received.
-HTTP/1.1 301 Moved Permanently
-Date: Tue, 14 Jul 2026 18:30:49 GMT
-Content-Type: text/html
-Content-Length: 167
-Connection: close
-Cache-Control: max-age=3600
-Expires: Tue, 14 Jul 2026 19:30:49 GMT
-Location: https://www.cloudflare.com/
-Set-Cookie: __cf_bm=paDw3IwOwV762L0i8CY7XU44JfEjwz4Sb1IJgu7oMcc-1784053849-1.0.1.1-3AwPuVnjd1WzNNaSK2pskDOUvjNBYN63TolZGnmq08fJHUyOohoOUvsfIaCICDsQ2ahvZ3oG4XYxttxOVmCYz2DG9IiaYKV5Aya5g2Kqtew; path=/; expires=Tue, 14-Jul-26 19:00:49 GMT; domain=.cloudflare.com; HttpOnly; Secure
-Report-To: {"endpoints":[{"url":"https:\/\/a.nel.cloudflare.com\/report\/v4?s=e%2Fnx4FRshcwf8Bdj2nxnimKVmeWEtjsQhQfnIR5FfURgmfFbmilsdV%2BHO3yqpmSi%2BVk2zMoti68%2BsdWG8nFh3HYp26ne6x4nKS8voOykbpMr1TsEFID4R486YqlR9RmS"}],"group":"cf-nel","max_age":604800}
-NEL: {"success_fraction":0,"report_to":"cf-nel","max_age":604800}
-Strict-Transport-Security: max-age=15780000; includeSubDomains
-Server: cloudflare
-CF-RAY: a1b299cc682f5bab-VIE
-alt-svc: h3=":443"; ma=86400
 
-<html>
-<head><title>301 Moved Permanently</title></head>
-<body>
-<center><h1>301 Moved Permanently</h1></center>
-<hr><center>cloudflare</center>
-</body>
-</html>
-tls-scanner %
+========================================
+Negotiated Cipher Suite: (0x1303)
+========================================
+
+cert[0] signature algorithm: SHA256WITHECDSA
+cert[1] signature algorithm: SHA384WITHECDSA
+cert[2] signature algorithm: SHA384WITHECDSA
+
+========================================
+
+BUILD SUCCESSFUL in 1s
+5 actionable tasks: 1 executed, 4 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
+tls-scanner % 
 ```
 
 ```
-tls-scanner % java -cp "lib/*:out" SupportedSuites github.com 443
-Scanning github.com on port 443 across 326 cipher suites...
+tls-scanner % ./gradlew :executables:scanner:run --args "github.com 443"
+
+> Task :executables:scanner:run
+Scanning github.com on port 443 across 3 cipher suites...
 This may take a moment as we test suites individually...
 
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
 ========================================
  Scan Results for: github.com
 ========================================
 The server accepted the following 3 suite(s):
- - TLS_AES_128_GCM_SHA256 (0x1301)
  - TLS_AES_256_GCM_SHA384 (0x1302)
+ - TLS_AES_128_GCM_SHA256 (0x1301)
  - TLS_CHACHA20_POLY1305_SHA256 (0x1303)
 ========================================
+
+BUILD SUCCESSFUL in 2s
+7 actionable tasks: 4 executed, 3 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
 tls-scanner %
 ```
 
@@ -81,10 +95,29 @@ docker run -d --name weak-tls-server \
 
 In this case `SupportedSuites` scanner can establish more TLS connections (including weak):
 ```
-tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 443
-Scanning localhost on port 443 across 326 cipher suites...
+tls-scanner % ./gradlew :executables:scanner:run --args "localhost 443"
+
+> Task :executables:scanner:run
+Scanning localhost on port 443 across 25 cipher suites...
 This may take a moment as we test suites individually...
 
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+
+. . .
+
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+HTTP/1.1 200 OK
 ========================================
  Scan Results for: localhost
 ========================================
@@ -115,24 +148,114 @@ The server accepted the following 25 suite(s):
  - TLS_RSA_WITH_AES_256_CCM (0xC09D)
  - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 (0xCCA8)
 ========================================
-tls-scanner %
+
+BUILD SUCCESSFUL in 863ms
+7 actionable tasks: 3 executed, 4 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
+artemstorozhuk@Artems-MacBook-Pro tls-scanner %
 ```
 
-Instead of nginx it is possible to run TLS server based on BouncyCastle libraries. It makes useful for own TLS cipher suites development.
+For scanner' development purposes there is a BouncyCastle-based TLS server that could be useful for debugging handshakes with custom cipher suites:
 
+Logs from `tlsserver`:
 ```
-docker build -t bc-tls-server .
-docker run -d -p 8443:8443 --name my-bc-server bc-tls-server
+tls-scanner % ./gradlew :executables:tlsserver:run --args "8443"
+
+> Task :executables:tlsserver:run
+Generating in-memory credentials using BC...
+Server's in-memory certificate has been generated
+Starting server...
+[Server] Raw TCP connection accepted from: /127.0.0.1:59931
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59932
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59933
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.3 compliant Certificate layout...
+[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59934
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59935
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59936
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59937
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Signer wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59938
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Decryptor wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+[Server] Raw TCP connection accepted from: /127.0.0.1:59939
+[Server] Initiating Bouncy Castle TLS handshake...
+[Server] Building TLS 1.2 compliant Certificate layout...
+[Server] Handshake requires an RSA Decryptor wrapper.
+[Server] Handshake completed successfully.
+[Server] Received message: "GET / HTTP/1.1"
+[Server] Worker thread execution finished. Socket released.
+│█████████████▊·│ 92% EXECUTING [34s]
+> :executables:tlsserver:run
 ```
 
-Above commands will create and run BC-based TLS server inside docker container, available for establishing connections:
-
-Executing `SupportedSuites` scanner (with cipher suites taken from `SharedTlsCryptoConfig.java`):
+Logs from `scanner`:
 ```
-tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 8443
+tls-scanner % ./gradlew :executables:scanner:run --args "localhost 8443"
+Starting a Gradle Daemon, 1 busy Daemon could not be reused, use --status for details
+
+> Task :executables:scanner:run
 Scanning localhost on port 8443 across 9 cipher suites...
 This may take a moment as we test suites individually...
 
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+Hello from the pure Bouncy Castle TLS Server!
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+Hello from the pure Bouncy Castle TLS Server!
+
+. . .
+
+[Client-Auth] Server's certificate validation is OK
+Connected!!!
+--- Decrypted Payload Response from Server ---
+Hello from the pure Bouncy Castle TLS Server!
 ========================================
  Scan Results for: localhost
 ========================================
@@ -147,73 +270,14 @@ The server accepted the following 9 suite(s):
  - TLS_RSA_WITH_AES_256_GCM_SHA384 (0x9D)
  - TLS_RSA_WITH_AES_128_GCM_SHA256 (0x9C)
 ========================================
-tls-scanner %
-```
 
-Logs on BouncyCastle's server:
-```
-tls-scanner % docker logs my-bc-server
-Generating in-memory credentials using BC...
-Starting server...
-[Server] Raw TCP connection accepted from: /172.17.0.1:35832
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.3 compliant Certificate layout...
-[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35840
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.3 compliant Certificate layout...
-[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35850
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.3 compliant Certificate layout...
-[Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35854
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35862
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35876
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35886
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Signer wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35896
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Decryptor wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /172.17.0.1:35910
-[Server] Initiating Bouncy Castle TLS handshake...
-[Server] Building TLS 1.2 compliant Certificate layout...
-[Server] Handshake requires an RSA Decryptor wrapper.
-[Server] Handshake completed successfully.
-[Server] Worker thread execution finished. Socket released.
+BUILD SUCCESSFUL in 3s
+7 actionable tasks: 1 executed, 6 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
 tls-scanner % 
-``` 
+```
 
-It is also possible to enable experimental DSTU algorithms substitution inside established TLS session.
-In this mode the default TLS cryptography specified in cipher-suite is replaced by DSTU algorithms:
+It is also possible to enable experimental DSTU algorithms substitution inside established TLS session. The whole TLS machinery is kept unchanged, meaning that client/server "think" that they use default cipher-suite (e.g. TLS_AES_256_GCM_SHA384), but internally in this mode the default TLS cryptography specified in cipher-suite is replaced by DSTU algorithms:
  - AES-GCM -> DSTU7624-GCM,
  - SHA -> DSTU7564,
  - Diffie-Hellman with X25519 -> Diffie-Hellman with DSTU curve,
@@ -228,17 +292,18 @@ for the same reasons.
 
 In this case server needs to be specifically compiled and launched with `dstu` flag:
 
+Logs on `tlsserver` in dstu-mode:
 ```
-javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java BouncyCastleTlsServer.java
-tls-scanner % java -cp "lib/*:out" BouncyCastleTlsServer 8443 dstu
+tls-scanner % ./gradlew :executables:tlsserver:run --args "8443 dstu"
 
+> Task :executables:tlsserver:run
 Generating in-memory credentials using BC...
 Using DSTU mode
 Public key size: 276
 Certificate generated and verified. Result:true
 DSTU-specific server's in-memory certificate has been generated
 Starting server...
-[Server] Raw TCP connection accepted from: /127.0.0.1:58644
+[Server] Raw TCP connection accepted from: /127.0.0.1:59950
 [Server] Initiating Bouncy Castle TLS handshake...
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
@@ -246,7 +311,7 @@ Starting server...
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:58645
+[Server] Raw TCP connection accepted from: /127.0.0.1:59951
 [Server] Initiating Bouncy Castle TLS handshake...
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
@@ -254,7 +319,7 @@ Starting server...
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
-[Server] Raw TCP connection accepted from: /127.0.0.1:58646
+[Server] Raw TCP connection accepted from: /127.0.0.1:59952
 [Server] Initiating Bouncy Castle TLS handshake...
 [Server] Building TLS 1.3 compliant Certificate layout...
 [Server] TLS 1.3 Handshake requires an RSA Signer wrapper.
@@ -262,14 +327,15 @@ Starting server...
 [Server] Handshake completed successfully.
 [Server] Received message: "GET / HTTP/1.1"
 [Server] Worker thread execution finished. Socket released.
+│█████████████▊·│ 92% EXECUTING [59s]
+tls-scanner %
 ```
 
-Client:
-
+Logs on `scanner` in dstu-mode:
 ```
-javac -cp "lib/*" -d out SharedTlsCryptoConfig.java DstuBcTlsCrypto.java SupportedSuites.java
-java -cp "lib/*:out" SupportedSuites localhost 8443 dstu
-tls-scanner % java -cp "lib/*:out" SupportedSuites localhost 8443 dstu
+tls-scanner % ./gradlew :executables:scanner:run --args "localhost 8443 dstu"
+
+> Task :executables:scanner:run
 Scanning localhost on port 8443 across 3 cipher suites...
 This may take a moment as we test suites individually...
 
@@ -303,5 +369,9 @@ The server accepted the following 3 suite(s):
  - TLS_AES_128_GCM_SHA256 (0x1301)
  - TLS_CHACHA20_POLY1305_SHA256 (0x1303)
 ========================================
+
+BUILD SUCCESSFUL in 969ms
+7 actionable tasks: 1 executed, 6 up-to-date
+Consider enabling configuration cache to speed up this build: https://docs.gradle.org/9.7.1/userguide/configuration_cache_enabling.html
 tls-scanner %
 ```

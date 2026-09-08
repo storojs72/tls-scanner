@@ -1,0 +1,16 @@
+plugins {
+    id 'application' // Enables the application plugin to run your main method
+}
+
+dependencies {
+    // This creates an active link directly to your modified Bouncy Castle source project
+    implementation project(':bctls-source')
+
+    // Provide standard runtime requirements for BC if needed by your CLI app
+    implementation 'org.bouncycastle:bcpkix-lts8on:2.73.11'
+}
+
+application {
+    // Define the main class of your command-line application
+    mainClass = 'tlstest.TlsTest'
+}
