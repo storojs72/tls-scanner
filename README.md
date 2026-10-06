@@ -2,7 +2,7 @@
 
 Basic scanner of TLS connections via BouncyCastle crypto-provider.
 
-Tested only on MacOS currently.
+Tested on MacOS and Linux currently.
 
 The project contains source code of `bctls` library (v2.73.11) which is compiled under-the-hood and used as a dependency for applications located in `executables/`:
 
@@ -14,12 +14,20 @@ The project contains source code of `bctls` library (v2.73.11) which is compiled
 ## Prerequisites
 
 Project uses Gradle build system, so You need to have Gradle (v9.7.1) and OpenJDK (v26.0.2.1) as prerequisites.
-If not installed, try installing them via homebrew:
+If not installed, try installing them via homebrew on MacOS:
 
 ```
-brew install openjdk
 brew install gradle
 ```
+
+On Linux try following:
+
+```
+sudo apt install -y gradle
+```
+
+Once you have `gradle` installed, you can just run `./gradlew` and it should pick up necessary OpenJDK version.
+
 
 ## Build and Run
 
