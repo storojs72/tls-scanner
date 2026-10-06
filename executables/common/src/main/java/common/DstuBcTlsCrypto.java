@@ -73,42 +73,7 @@ public class DstuBcTlsCrypto extends BcTlsCrypto {
         // Otherwise, allow any other curves/handshakes to process natively without modification
         return super.createECDomain(ecConfig);
     }
-
-    @Override
-    public TlsCertificate createCertificate(byte[] encoding) throws IOException {
-        return new Dstu4145TlsCertificate(this, encoding);
-    }
 }
-
-class Dstu4145TlsCertificate extends BcTlsCertificate {
-    public Dstu4145TlsCertificate(DstuBcTlsCrypto crypto, byte[] encoding) throws IOException {
-        super(crypto, encoding);
-    }
-
-    @Override
-    public Tls13Verifier createVerifier(int signatureScheme) throws IOException {
-        return new Dstu4145Tls13Verifier();
-    }
-
-//    @Override
-//    public TlsVerifier createVerifier(short signatureScheme) {
-//        return new Dstu4145TlsVerifier();
-//    }
-}
-
-//class Dstu4145TlsVerifier implements TlsVerifier {
-//    @Override
-//    public TlsStreamVerifier getStreamVerifier(DigitallySigned digitallySigned) throws IOException {
-//        return null;
-//    }
-//
-//    @Override
-//    public boolean verifyRawSignature(DigitallySigned digitallySigned, byte[] bytes) throws IOException {
-//        System.out.println("Calling verifySignature in DSTU mode");
-//        // Stub to by-pass CertificateVerify packet validation during handshaking
-//        return true;
-//    }
-//}
 
 // Substitutes x25519 to DSTU 4145 (257 bits)
 class Dstu4145ECDomain implements TlsECDomain {

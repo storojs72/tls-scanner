@@ -19,7 +19,7 @@ public interface TlsHash
      *
      * @return the hash value.
      */
-    byte[] calculateHash();
+    byte[]  calculateHash();
 
     /**
      * Return a clone of this hash object representing its current state.

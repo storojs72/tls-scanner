@@ -323,7 +323,7 @@ public class BouncyCastleTlsServer {
     // In-memory DSTU certificate generator
     public static void generateInMemoryDstu4145Credentials(TlsCrypto crypto) {
         try {
-            // 1. Generate DSTU 4145 Key Pair (using 257-bit curve)
+            // 1. Generate DSTU 4145 Key Pair
             ECDomainParameters dstuParams = SharedTlsCryptoConfig.DSTU4145_CURVE_ID;
 
             ECParameterSpec spec = new ECParameterSpec(

@@ -48,7 +48,7 @@ public class SharedTlsCryptoConfig {
 //            CipherSuite.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
     };
 
-    public static ECDomainParameters DSTU4145_CURVE_ID = ConfigUtils.getDstu4145Curve(ConfigUtils.Dstu4145Curve.M257);
+    public static ECDomainParameters DSTU4145_CURVE_ID = ConfigUtils.getDstu4145Curve(ConfigUtils.Dstu4145Curve.M431);
 }
 
 class ConfigUtils {

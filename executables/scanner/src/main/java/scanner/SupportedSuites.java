@@ -11,7 +11,6 @@ import org.bouncycastle.tls.crypto.TlsCrypto;
 import org.bouncycastle.tls.crypto.impl.bc.BcTlsCrypto;
 
 import common.DstuBcTlsCrypto;
-import common.Dstu4145Tls13Verifier;
 import common.SharedTlsCryptoConfig;
 
 import java.io.*;
@@ -69,8 +68,7 @@ public class SupportedSuites {
                 // Set a brief timeout so dead suites don't hang the scanner
                 socket.setSoTimeout(3000);
 
-                ExtendedTlsClientProtocol tlsClientProtocol = new ExtendedTlsClientProtocol(
-                        // TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(
+                TlsClientProtocol tlsClientProtocol = new TlsClientProtocol(
                         socket.getInputStream(),
                         socket.getOutputStream()
                 );
@@ -126,36 +124,16 @@ public class SupportedSuites {
         System.out.println("========================================");
     }
 
-    public static class ExtendedTlsClientProtocol extends TlsClientProtocol {
-        public ExtendedTlsClientProtocol(InputStream inputStream, OutputStream outputStream) {
-            super(inputStream, outputStream);
-        }
-
-        @Override
-        protected void receive13ServerCertificateVerify(ByteArrayInputStream buf) throws IOException {
-            TlsContext context = getContext();
-            TlsCrypto crypto = context.getCrypto();
-            if (crypto instanceof DstuBcTlsCrypto) {
-                Certificate serverCertificate = context.getSecurityParametersHandshake().getPeerCertificate();
-                if (null != serverCertificate && !serverCertificate.isEmpty()) {
-                    TlsCertificate certificate = serverCertificate.getCertificateAt(0);
-
-                    // FIXME: verifier needs to be instantiated from the certificate which is not possible for DSTU mode
-                    //  without modifying source code of bctls library.
-
-                    // Dstu4145TlsVerifier verifier = certificate.createVerifier(0);
-                    Dstu4145Tls13Verifier verifier = new Dstu4145Tls13Verifier();
-
-                    // FIXME: transcript hash can't be computed without accessing internal handshakeHash field
-                    //  (this also requires modifying the source code of bctls library).
-
-                    verifier.verifySignature(null); // stub
-                }
-            } else {
-                super.receive13ServerCertificateVerify(buf);
-            }
-        }
-    }
+//    public static class ExtendedTlsClientProtocol extends TlsClientProtocol {
+//        public ExtendedTlsClientProtocol(InputStream inputStream, OutputStream outputStream) {
+//            super(inputStream, outputStream);
+//        }
+//
+//        @Override
+//        protected void receive13ServerCertificateVerify(ByteArrayInputStream buf) throws IOException {
+//            super.receive13ServerCertificateVerify(buf);
+//        }
+//    }
 
     public static class ConfigurableTlsClient extends DefaultTlsClient {
 

@@ -2,6 +2,9 @@ package org.bouncycastle.tls.crypto.impl.bc;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.*;
+import java.security.spec.KeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 import org.bouncycastle.asn1.ASN1Encodable;
 import org.bouncycastle.asn1.ASN1Encoding;
@@ -12,26 +15,11 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.crypto.Digest;
 import org.bouncycastle.crypto.Signer;
 import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.params.DHPublicKeyParameters;
-import org.bouncycastle.crypto.params.DSAPublicKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters;
-import org.bouncycastle.crypto.params.Ed448PublicKeyParameters;
-import org.bouncycastle.crypto.params.MLDSAPublicKeyParameters;
-import org.bouncycastle.crypto.params.ParametersWithID;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.params.SLHDSAPublicKeyParameters;
-import org.bouncycastle.crypto.signers.DSADigestSigner;
-import org.bouncycastle.crypto.signers.ECDSASigner;
+import org.bouncycastle.crypto.params.*;
+import org.bouncycastle.crypto.signers.*;
 import org.bouncycastle.crypto.signers.Ed25519Signer;
-import org.bouncycastle.crypto.signers.Ed448Signer;
-import org.bouncycastle.crypto.signers.MLDSASigner;
-import org.bouncycastle.crypto.signers.PSSSigner;
-import org.bouncycastle.crypto.signers.RSADigestSigner;
-import org.bouncycastle.crypto.signers.SLHDSASigner;
-import org.bouncycastle.crypto.signers.SM2Signer;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.pqc.crypto.MessageSignerAdapter;
 import org.bouncycastle.tls.AlertDescription;
 import org.bouncycastle.tls.HashAlgorithm;
@@ -49,6 +37,67 @@ import org.bouncycastle.tls.crypto.impl.LegacyTls13Verifier;
 import org.bouncycastle.tls.crypto.impl.PQCUtil;
 import org.bouncycastle.tls.crypto.impl.RSAUtil;
 import org.bouncycastle.util.Strings;
+
+import java.io.OutputStream;
+
+class DstuOutputStream extends OutputStream {
+    Digest digest;
+
+    public DstuOutputStream(Digest var1) {
+        this.digest = var1;
+    }
+
+    public void write(int var1) throws IOException {
+        this.digest.update((byte)var1);
+    }
+
+    public void write(byte[] var1, int var2, int var3) throws IOException {
+        this.digest.update(var1, var2, var3);
+    }
+
+    public Digest getDigest() {
+        return this.digest;
+    }
+}
+
+class Dstu4145Tls13Verifier implements Tls13Verifier {
+
+    Signature signer;
+    DstuOutputStream stream;
+
+    public Dstu4145Tls13Verifier(Digest var1, PublicKey pubKey) throws NoSuchAlgorithmException, InvalidKeyException {
+        this.stream = new DstuOutputStream(var1);
+
+        Signature signer = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+        signer.initVerify(pubKey);
+
+        this.signer = signer;
+    }
+
+    @Override
+    public OutputStream getOutputStream() throws IOException {
+        return this.stream;
+    }
+
+    @Override
+    public boolean verifySignature(byte[] bytes) throws IOException {
+        try {
+            Digest digest = this.stream.getDigest();
+
+            // calculate ultimate hash correspondent to the input signature bytes and verify the signature
+            byte[] var2 = new byte[digest.getDigestSize()];
+            digest.doFinal(var2, 0);
+
+            this.signer.update(var2);
+
+            return this.signer.verify(bytes);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+}
 
 /**
  * Implementation class for a single X.509 certificate based on the BC light-weight API.
@@ -203,6 +252,22 @@ public class BcTlsRawKeyCertificate
         case SignatureScheme.rsa_pkcs1_sha384:
         case SignatureScheme.rsa_pkcs1_sha512:
         {
+            // DSTU mode custom handling
+            if (crypto.getClass().getName().toLowerCase().contains("dstu")) {
+                int cryptoHashAlgorithm = SignatureScheme.getCryptoHashAlgorithm(signatureScheme);
+                if (cryptoHashAlgorithm == HashAlgorithm.sha384 || cryptoHashAlgorithm == HashAlgorithm.sha256) {
+                    Digest digest = crypto.createDigest(cryptoHashAlgorithm);
+                    try {
+                        KeySpec keySpec = new X509EncodedKeySpec(this.keyInfo.getEncoded());
+                        KeyFactory keyFactory = KeyFactory.getInstance("DSTU4145", new BouncyCastleProvider());
+                        PublicKey pubKey = keyFactory.generatePublic(keySpec);
+                        return new Dstu4145Tls13Verifier(digest, pubKey);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+
             validateRSA_PKCS1();
 
             int cryptoHashAlgorithm = SignatureScheme.getCryptoHashAlgorithm(signatureScheme);
