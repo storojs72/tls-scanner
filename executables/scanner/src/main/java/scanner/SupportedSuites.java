@@ -75,37 +75,40 @@ public class SupportedSuites {
 
                 // Override the client to ONLY offer this single cipher suite
                 tlsClientProtocol.connect(new ConfigurableTlsClient(crypto, suiteCode));
-                System.out.println("Connected!!!");
+                if (tlsClientProtocol.isConnected()) {
+                    System.out.println("[Client] Connected!!!");
+                    InputStream secureInput = tlsClientProtocol.getInputStream();
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(secureInput, "UTF-8"));
 
+                    OutputStream secureOutput = tlsClientProtocol.getOutputStream();
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(secureOutput, "UTF-8"), true);
 
-                InputStream secureInput = tlsClientProtocol.getInputStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(secureInput, "UTF-8"));
+                    // Write simple GET that is already encrypted
+                    writer.println("GET / HTTP/1.1");
+                    // Read the decrypted server response
+                    String clientMessage = reader.readLine();
+                    if (clientMessage != null) {
+                        System.out.println("[Client] Received and decrypted payload from server: " + clientMessage);
+                        System.out.println("[Client] Sending ACK message...");
+                        writer.println("ACK");
 
-                OutputStream secureOutput = tlsClientProtocol.getOutputStream();
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(secureOutput, "UTF-8"), true);
+                        // If no exception was thrown, the handshake succeeded and encryption/decryption is evaluated!
+                        supportedSuites.add(suiteName + " (0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
 
-                // Write simple GET that is already encrypted
-                writer.println("GET / HTTP/1.1");
-                writer.println("Host: " + socket.getInetAddress().getHostName());
-                writer.println("Connection: close");
-                writer.println(); // Critical empty line for HTTP protocol
-
-                // Read the decrypted server response
-                String clientMessage = reader.readLine();
-                if (clientMessage != null) {
-                    System.out.println("--- Decrypted Payload Response from Server ---");
-                    System.out.println(clientMessage);
+                    }
+                } else {
+                    System.out.println("Not properly connected");
                 }
-
-                // If no exception was thrown, the handshake succeeded and encryption/decryption is evaluated!
-                supportedSuites.add(suiteName + " (0x" + Integer.toHexString(suiteCode).toUpperCase() + ")");
+                System.out.println("[Client] Closing connection...");
                 tlsClientProtocol.close();
 
             } catch (IOException e) {
                 // Handshake failed or was rejected by the server for this suite.
                 // We silently ignore this and move to the next suite.
+                System.out.println("IOException: " + e.getMessage());
             } catch (Exception e) {
                 // Ignore general evaluation snags
+                System.out.println("Exception: " + e.getMessage());
             }
         }
 
@@ -233,7 +236,7 @@ public class SupportedSuites {
                     e.printStackTrace();
                 }
 
-                System.out.println("[Client-Auth] Server's certificate validation (in DSTU mode) is OK");
+                System.out.println("[Client] Server's certificate validation (in DSTU mode) is OK");
             }
 
             @Override
@@ -248,7 +251,7 @@ public class SupportedSuites {
         public static class ServerOnlyBlindTlsAuthentication implements TlsAuthentication {
             @Override
             public void notifyServerCertificate(TlsServerCertificate tlsServerCertificate) throws IOException {
-                System.out.println("[Client-Auth] Server's certificate validation is OK");
+                System.out.println("[Client] Server's certificate validation is OK");
             }
 
             @Override

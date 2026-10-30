@@ -2608,7 +2608,7 @@ public class TlsUtils
                 stream.write(prfHash, 0, prfHash.length);
 
                 verified = verifier.verifySignature(certificateVerify.getSignature());
-                System.out.println("CertificateVerify packet has been verified. Result: " + verified);
+                System.out.println("[TLS 1.3] CertificateVerify packet has been verified. Result: " + verified);
             } else {
                 // regular TLS 1.3 flow
                 int signatureScheme = certificateVerify.getAlgorithm();
@@ -2730,6 +2730,7 @@ public class TlsUtils
         {
             byte[] hash = calculateSignatureHash(context, sigAndHashAlg, digestBuffer);
             verified = verifier.verifyRawSignature(digitallySigned, hash);
+            System.out.println("[TLS 1.2] CertificateVerify packet has been verified. Result: " + verified);
         }
 
         if (!verified)

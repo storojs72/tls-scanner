@@ -107,27 +107,46 @@ public class BouncyCastleTlsServer {
 
             // Get secure application-level streams managed by BouncyCastle
             InputStream tlsIn = tlsServerProtocol.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(tlsIn, "UTF-8"));
+
             OutputStream tlsOut = tlsServerProtocol.getOutputStream();
+            PrintWriter writer = new PrintWriter(new OutputStreamWriter(tlsOut, "UTF-8"), true);
+
 
             // Read secure payload sent by client
-            BufferedReader reader = new BufferedReader(new InputStreamReader(tlsIn));
             String clientMessage = reader.readLine();
             if (clientMessage != null) {
                 System.out.println("[Server] Received message: \"" + clientMessage + "\"");
-                String response = "Hello from the pure Bouncy Castle TLS Server!\n";
-                tlsOut.write(response.getBytes());
-                tlsOut.flush();
+                String response = "Hello from the pure Bouncy Castle TLS Server!";
+                writer.println(response);
+                System.out.println("[Server] Sent response");
             }
+
+            tlsIn = tlsServerProtocol.getInputStream();
+            reader = new BufferedReader(new InputStreamReader(tlsIn, "UTF-8"));
+            String ackMessage = reader.readLine();
+
+            if (ackMessage.contains("ACK")) {
+                System.out.println("[Server] Received ACK message from client");
+            } else {
+                System.out.println("[Server] Received unexpected message: " + ackMessage);
+            }
+
+            Thread.yield();
+
         } catch (TlsFatalAlert e) {
             // Catch specific TLS failures (like handshake_failure(40)) cleanly
             System.err.println("[Server] TLS Handshake failed gracefully: " + e.getMessage() + " (Alert Description: " + e.getAlertDescription() + ")");
             e.printStackTrace();
         } catch (IOException e) {
             System.err.println("[Server] Network I/O breakdown: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("[Server] Unexpected exception: " + e.getMessage());
         } finally {
             // Ensure system network resources are freed under ALL circumstances
             if (tlsServerProtocol != null) {
                 try {
+                    System.out.println("[Server] Closing TLS connection...");
                     tlsServerProtocol.close();
                 } catch (Exception ignored) {
                 }
@@ -226,7 +245,12 @@ public class BouncyCastleTlsServer {
                 case KeyExchangeAlgorithm.ECDHE_RSA:
                 case KeyExchangeAlgorithm.DHE_RSA:
                     // Required for modern ephemeral Diffie-Hellman suites (Server signs parameters)
-                    System.out.println("[Server] Handshake requires an RSA Signer wrapper.");
+                    System.out.println("[Server] TLS 1.2 Handshake requires an RSA Signer wrapper.");
+                    if (bcCrypto instanceof DstuBcTlsCrypto) {
+                        System.out.println("[Server] Using DSTU-4145 signing of the CertificateVerify packet");
+                        return new BcDstuDefaultTlsCredentialedSigner(cryptoParams, serverPrivateKey, localCertChain, selectedAlg);
+                    }
+
                     if (bcCrypto instanceof BcTlsCrypto) {
                         return new BcDefaultTlsCredentialedSigner(cryptoParams, (BcTlsCrypto) bcCrypto, PrivateKeyFactory.createKey(serverPrivateKey.getEncoded()), localCertChain, selectedAlg);
                     }

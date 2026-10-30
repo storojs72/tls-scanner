@@ -21,24 +21,16 @@ import org.bouncycastle.crypto.signers.Ed25519Signer;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.pqc.crypto.MessageSignerAdapter;
-import org.bouncycastle.tls.AlertDescription;
-import org.bouncycastle.tls.HashAlgorithm;
-import org.bouncycastle.tls.SignatureAlgorithm;
-import org.bouncycastle.tls.SignatureScheme;
-import org.bouncycastle.tls.TlsFatalAlert;
-import org.bouncycastle.tls.TlsUtils;
-import org.bouncycastle.tls.crypto.Tls13Verifier;
-import org.bouncycastle.tls.crypto.TlsCertificate;
-import org.bouncycastle.tls.crypto.TlsCertificateRole;
-import org.bouncycastle.tls.crypto.TlsCryptoUtils;
-import org.bouncycastle.tls.crypto.TlsEncryptor;
-import org.bouncycastle.tls.crypto.TlsVerifier;
+import org.bouncycastle.tls.*;
+import org.bouncycastle.tls.crypto.*;
 import org.bouncycastle.tls.crypto.impl.LegacyTls13Verifier;
 import org.bouncycastle.tls.crypto.impl.PQCUtil;
 import org.bouncycastle.tls.crypto.impl.RSAUtil;
 import org.bouncycastle.util.Strings;
 
 import java.io.OutputStream;
+
+// For TLS 1.3 (in DSTU mode)
 
 class DstuOutputStream extends OutputStream {
     Digest digest;
@@ -94,6 +86,35 @@ class Dstu4145Tls13Verifier implements Tls13Verifier {
 
         } catch (Exception e) {
             e.printStackTrace();
+            return false;
+        }
+    }
+}
+
+// For TLS 1.2 (DSTU mode)
+
+class Dstu4145TlsVerifier implements TlsVerifier {
+
+    Signature signer;
+
+    public Dstu4145TlsVerifier(PublicKey pubKey) throws NoSuchAlgorithmException, InvalidKeyException {
+        Signature signer = Signature.getInstance("DSTU4145", new BouncyCastleProvider());
+        signer.initVerify(pubKey);
+        this.signer = signer;
+    }
+
+    @Override
+    public TlsStreamVerifier getStreamVerifier(DigitallySigned digitallySigned) throws IOException {
+        return null;
+    }
+
+    @Override
+    public boolean verifyRawSignature(DigitallySigned digitallySigned, byte[] hash) throws IOException {
+        byte[] signature = digitallySigned.getSignature();
+        try {
+            this.signer.update(hash);
+            return this.signer.verify(signature);
+        } catch (SignatureException e) {
             return false;
         }
     }
@@ -175,8 +196,18 @@ public class BcTlsRawKeyCertificate
         case SignatureAlgorithm.ecdsa:
             return new BcTlsECDSAVerifier(crypto, getPubKeyEC());
 
-        case SignatureAlgorithm.rsa:
-        {
+        case SignatureAlgorithm.rsa: {
+            if (crypto.getClass().getName().toLowerCase().contains("dstu")) {
+                try {
+                    KeySpec keySpec = new X509EncodedKeySpec(this.keyInfo.getEncoded());
+                    KeyFactory keyFactory = KeyFactory.getInstance("DSTU4145", new BouncyCastleProvider());
+                    PublicKey pubKey = keyFactory.generatePublic(keySpec);
+                    return new Dstu4145TlsVerifier(pubKey);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+
             validateRSA_PKCS1();
             return new BcTlsRSAVerifier(crypto, getPubKeyRSA());
         }
